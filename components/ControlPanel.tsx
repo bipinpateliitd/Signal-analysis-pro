@@ -14,6 +14,8 @@ interface ControlPanelProps {
   isLoading: boolean;
   maxFrequency: number;
   onMaxFrequencyChange: (freq: number) => void;
+  headerInfo?: Record<string, string>;
+  channelNames?: string[];
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -27,7 +29,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onApplyFilters,
   isLoading,
   maxFrequency,
-  onMaxFrequencyChange
+  onMaxFrequencyChange,
+  headerInfo,
+  channelNames,
 }) => {
   const handleChannelToggle = (channelIndex: number) => {
     const newSelection = selectedChannels.includes(channelIndex)
@@ -53,8 +57,17 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         <h2 className="text-xl font-bold mb-2 text-white">File Information</h2>
         <div className="space-y-1 text-sm text-gray-300">
           <p><span className="font-semibold text-gray-400">Name:</span> <span className="break-all">{fileName}</span></p>
-          <p><span className="font-semibold text-gray-400">Sampling Rate:</span> {samplingRate.toLocaleString()} Hz</p>
-          <p><span className="font-semibold text-gray-400">Channels:</span> {numChannels}</p>
+          {headerInfo && Object.entries(headerInfo).map(([key, value]) => (
+             !/^Info-\d+$/.test(key) ? (
+              <p key={key}><span className="font-semibold text-gray-400">{key}:</span> {value}</p>
+            ) : (
+              <p key={key}>{value}</p> 
+            )
+          ))}
+          {!headerInfo?.['Sample Rate'] && !headerInfo?.['sample rate'] && (
+            <p><span className="font-semibold text-gray-400">Sampling Rate:</span> {samplingRate.toLocaleString()} Hz</p>
+          )}
+          <p><span className="font-semibold text-gray-400">Channels Found:</span> {numChannels}</p>
         </div>
       </div>
 
@@ -69,7 +82,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 onChange={() => handleChannelToggle(index)}
                 className="form-checkbox h-5 w-5 text-secondary bg-base-300 border-gray-600 rounded focus:ring-secondary"
               />
-              <span className="text-gray-200">Channel {index + 1}</span>
+              <span className="text-gray-200">{channelNames?.[index] || `Channel ${index + 1}`}</span>
             </label>
           ))}
         </div>

@@ -1,7 +1,8 @@
-
 export interface SignalData {
   samplingRate: number;
   channels: number[][];
+  channelNames?: string[];
+  headerInfo?: Record<string, string>;
 }
 
 export enum FilterType {

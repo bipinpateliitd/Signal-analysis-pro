@@ -7,6 +7,7 @@ import { calculateFFT } from '../services/signalProcessor';
 
 interface ChannelAnalysisProps {
   channelId: number;
+  channelName?: string;
   channelData: number[];
   samplingRate: number;
   maxFrequency: number;
@@ -14,7 +15,7 @@ interface ChannelAnalysisProps {
 
 type Tab = 'waveform' | 'fft' | 'spectrogram';
 
-export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelData, samplingRate, maxFrequency }) => {
+export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, samplingRate, maxFrequency }) => {
   const [activeTab, setActiveTab] = useState<Tab>('waveform');
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -110,7 +111,7 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-lg">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-2xl font-bold text-white">Channel {channelId + 1}</h3>
+        <h3 className="text-2xl font-bold text-white">{channelName || `Channel ${channelId + 1}`}</h3>
         <div className="flex items-center gap-4">
           <div className="flex items-center bg-base-300 rounded-lg p-1">
             {TABS.map(tab => (
