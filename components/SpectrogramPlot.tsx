@@ -70,7 +70,7 @@ const calculateFFT = (data, samplingRate) => {
 
 const calculateSTFT = (data, samplingRate, windowSize, hopSize) => {
     const stft = [];
-    let maxMagnitude = 0;
+    let maxMagnitude = -Infinity;
 
     for (let i = 0; i + windowSize <= data.length; i += hopSize) {
         const windowedData = data.slice(i, i + windowSize);
@@ -106,12 +106,13 @@ interface StftData {
 interface SpectrogramPlotProps {
   data: number[];
   samplingRate: number;
+  maxFrequency: number;
 }
 
 const WINDOW_OPTIONS = [256, 512, 1024, 2048, 4096];
 const HOP_OPTIONS = [64, 128, 256, 512, 1024, 2048];
 
-export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, samplingRate }) => {
+export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, samplingRate, maxFrequency }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -188,21 +189,34 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
-    // @ts-ignore
-    const colorScale = d3.scaleSequential(d3.interpolateInferno).domain([0, maxMagnitude * 0.75]);
-    
-    const numTimeBins = stft.length;
-    if (numTimeBins === 0) return;
-    const numFreqBins = stft[0].length;
-    
-    const colWidth = width / numTimeBins;
-    const rowHeight = height / numFreqBins;
 
     ctx.clearRect(0, 0, width, height);
 
+    if (!isFinite(maxMagnitude) || stft.length === 0 || stft[0].length === 0) {
+      return; // Do not draw if data is invalid
+    }
+    
+    const dynamicRange = 80; // 80 dB dynamic range
+    const minMagnitude = maxMagnitude - dynamicRange;
+
+    // @ts-ignore
+    const colorScale = d3.scaleSequential(d3.interpolateInferno).domain([minMagnitude, maxMagnitude]);
+    
+    const numTimeBins = stft.length;
+    
+    const totalFreqBins = stft[0].length;
+    const freqResolution = (samplingRate / 2) / totalFreqBins;
+    const binsToDraw = Math.min(totalFreqBins, Math.floor(maxFrequency / freqResolution));
+    
+    if (binsToDraw <= 0) {
+        return;
+    }
+    
+    const colWidth = width / numTimeBins;
+    const rowHeight = height / binsToDraw;
+
     for (let t = 0; t < numTimeBins; t++) {
-      for (let f = 0; f < numFreqBins; f++) {
+      for (let f = 0; f < binsToDraw; f++) {
         const magnitude = stft[t][f];
         // Invert frequency axis for conventional display (low freq at bottom)
         const y = height - ((f + 1) * rowHeight);
@@ -212,7 +226,7 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
       }
     }
 
-  }, [stftData]);
+  }, [stftData, maxFrequency, samplingRate]);
   
   const timeLabels = useMemo(() => {
     if (!data) return [];
@@ -221,12 +235,11 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
   }, [data, samplingRate]);
   
   const freqLabels = useMemo(() => {
-     const maxFreq = samplingRate / 2;
      return [0, 0.25, 0.5, 0.75, 1].map(d => {
-       const freq = d * maxFreq;
+       const freq = d * maxFrequency;
        return freq > 1000 ? `${(freq / 1000).toFixed(1)}k` : `${Math.round(freq)}`;
      });
-  }, [samplingRate]);
+  }, [maxFrequency]);
 
 
   const renderContent = () => {

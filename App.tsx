@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ControlPanel } from './components/ControlPanel';
@@ -15,6 +14,8 @@ const App: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [fileName, setFileName] = useState<string>('');
     const [processedData, setProcessedData] = useState<number[][] | null>(null);
+    const [maxFrequency, setMaxFrequency] = useState<number>(22050);
+
 
     const handleFileUpload = (data: SignalData, name: string) => {
         if (data.channels.length < 3) {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
         setError(null);
         setSignalData(data);
         setFileName(name);
+        setMaxFrequency(data.samplingRate / 2);
         const initialChannels = Array.from({ length: Math.min(3, data.channels.length) }, (_, i) => i);
         setSelectedChannels(initialChannels);
         setProcessedData(data.channels); // Initially, processed data is raw data
@@ -104,6 +106,8 @@ const App: React.FC = () => {
                                 onFilterSettingsChange={setFilterSettings}
                                 onApplyFilters={handleApplyFilters}
                                 isLoading={isLoading}
+                                maxFrequency={maxFrequency}
+                                onMaxFrequencyChange={setMaxFrequency}
                             />
                         </aside>
                         <section className="lg:col-span-9">
@@ -135,6 +139,7 @@ const App: React.FC = () => {
                                                 channelId={channelIndex}
                                                 channelData={processedData[channelIndex]}
                                                 samplingRate={signalData.samplingRate}
+                                                maxFrequency={maxFrequency}
                                             />
                                         ))
                                     ) : (

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FilterType, FilterSettings } from '../types';
 import { InfoIcon } from './icons';
@@ -13,6 +12,8 @@ interface ControlPanelProps {
   onFilterSettingsChange: (settings: FilterSettings) => void;
   onApplyFilters: () => void;
   isLoading: boolean;
+  maxFrequency: number;
+  onMaxFrequencyChange: (freq: number) => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -24,7 +25,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   filterSettings,
   onFilterSettingsChange,
   onApplyFilters,
-  isLoading
+  isLoading,
+  maxFrequency,
+  onMaxFrequencyChange
 }) => {
   const handleChannelToggle = (channelIndex: number) => {
     const newSelection = selectedChannels.includes(channelIndex)
@@ -34,6 +37,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   };
   
   const allChannels = Array.from({ length: numChannels }, (_, i) => i);
+  const nyquist = samplingRate / 2;
+
+  const handleMaxFreqChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = Number(e.target.value);
+    if (isNaN(value)) return;
+    if (value <= 0) value = 1;
+    if (value > nyquist) value = nyquist;
+    onMaxFrequencyChange(value);
+  };
 
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-lg space-y-6 sticky top-8">
@@ -60,6 +72,23 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               <span className="text-gray-200">Channel {index + 1}</span>
             </label>
           ))}
+        </div>
+      </div>
+
+       <div>
+        <h2 className="text-xl font-bold mb-3 text-white">Display Settings</h2>
+        <div>
+          <label htmlFor="max-freq" className="block text-sm font-medium text-gray-400 mb-1">Max Frequency (Hz)</label>
+          <input
+            type="number"
+            id="max-freq"
+            value={Math.round(maxFrequency)}
+            onChange={handleMaxFreqChange}
+            max={nyquist}
+            min={1}
+            className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
+          />
+          <p className="text-xs text-gray-500 mt-1">Max possible: {nyquist.toLocaleString()} Hz</p>
         </div>
       </div>
       
@@ -148,12 +177,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             Processing...
           </>
         ) : (
-          'Apply Filters & Analyze'
+          'Apply Filters'
         )}
       </button>
        <div className="flex items-start gap-2 text-xs text-gray-500 pt-2">
             <InfoIcon/>
-            <span>Note: Filtering large files may take a moment. The interface might be unresponsive during processing.</span>
+            <span>Note: Filtering large files may take a moment. The analysis will update after processing.</span>
         </div>
     </div>
   );

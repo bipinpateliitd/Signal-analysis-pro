@@ -65,10 +65,22 @@ export const calculateFFT = (data: number[], samplingRate: number) => {
     }
     
     const { real, imag } = fft(paddedData);
-
-    const magnitudes = real.map((r, i) => Math.sqrt(r * r + imag[i] * imag[i]));
-    const frequencies = real.map((_, i) => i * samplingRate / paddedLength);
     
+    const N = paddedLength;
+    const halfLength = Math.floor(N / 2) + 1;
+    const magnitudes = new Array(halfLength);
+    const frequencies = new Array(halfLength);
+
+    for (let i = 0; i < halfLength; i++) {
+        const mag = Math.sqrt(real[i] * real[i] + imag[i] * imag[i]);
+        if (i === 0 || i === N / 2) { // DC and Nyquist
+            magnitudes[i] = mag / N;
+        } else { // Other frequencies
+            magnitudes[i] = (2 * mag) / N;
+        }
+        frequencies[i] = i * samplingRate / N;
+    }
+
     return { magnitudes, frequencies };
 };
 
