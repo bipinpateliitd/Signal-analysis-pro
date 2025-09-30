@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { calculateFFT } from '../services/signalProcessor';
@@ -9,15 +8,31 @@ interface FftPlotProps {
   samplingRate: number;
 }
 
+const MAX_POINTS = 5000; // Limit points to prevent rendering issues
+
 export const FftPlot: React.FC<FftPlotProps> = ({ data, samplingRate }) => {
   const plotData = useMemo<PlotPoint[]>(() => {
     const { magnitudes, frequencies } = calculateFFT(data, samplingRate);
     // We only need to plot the first half of the FFT results (Nyquist frequency)
     const halfLength = Math.floor(magnitudes.length / 2);
-    return magnitudes.slice(0, halfLength).map((mag, i) => ({
+    
+    const rawPlotData = magnitudes.slice(0, halfLength).map((mag, i) => ({
       x: frequencies[i],
       y: mag,
     }));
+
+    if (rawPlotData.length <= MAX_POINTS) {
+      return rawPlotData;
+    }
+
+    // Downsample if needed
+    const step = Math.floor(rawPlotData.length / MAX_POINTS);
+    const sampledData: PlotPoint[] = [];
+    for (let i = 0; i < rawPlotData.length; i += step) {
+      sampledData.push(rawPlotData[i]);
+    }
+    return sampledData;
+
   }, [data, samplingRate]);
 
   return (
@@ -37,13 +52,14 @@ export const FftPlot: React.FC<FftPlotProps> = ({ data, samplingRate }) => {
             tickFormatter={(freq) => freq > 1000 ? `${(freq/1000).toFixed(1)}k` : freq}
           />
           <YAxis 
-            label={{ value: 'Magnitude (dB)', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} 
+            label={{ value: 'Magnitude', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} 
             stroke="#9ca3af"
+            tickFormatter={(value) => value.toExponential(1)}
           />
           <Tooltip 
             contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
             labelStyle={{ color: '#d1d5db' }}
-            formatter={(value: number) => [`${value.toFixed(2)} dB`, "Magnitude"]}
+            formatter={(value: number) => [`${value.toExponential(2)}`, "Magnitude"]}
             labelFormatter={(label: number) => `Frequency: ${label.toFixed(2)} Hz`}
           />
           <Legend wrapperStyle={{color: '#d1d5db'}} />

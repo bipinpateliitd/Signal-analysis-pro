@@ -2,37 +2,64 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 
 // The worker code is self-contained plain JavaScript for STFT calculation.
 const workerCode = `
-// A simple FFT implementation (Cooley-Tukey Radix-2)
+// Iterative FFT (Cooley-Tukey)
 const fft = (input) => {
     const n = input.length;
-    if (n <= 1) return { real: [...input], imag: Array(n).fill(0) };
+    if ((n & (n - 1)) !== 0 && n !== 0) {
+        console.error("FFT input length must be a power of 2.");
+        return { real: [], imag: [] };
+    }
 
-    const even = fft(input.filter((_, i) => i % 2 === 0));
-    const odd = fft(input.filter((_, i) => i % 2 !== 0));
+    const real = input.slice();
+    const imag = new Array(n).fill(0);
+    let j = 0;
+    for (let i = 0; i < n; i++) {
+        if (i < j) {
+            [real[i], real[j]] = [real[j], real[i]];
+        }
+        let m = n >> 1;
+        while (j >= m && m > 0) {
+            j -= m;
+            m >>= 1;
+        }
+        j += m;
+    }
 
-    const real = Array(n);
-    const imag = Array(n);
+    for (let len = 2; len <= n; len <<= 1) {
+        const halfLen = len >> 1;
+        const angle = -2 * Math.PI / len;
+        const w_real = Math.cos(angle);
+        const w_imag = Math.sin(angle);
+        for (let i = 0; i < n; i += len) {
+            let wk_real = 1;
+            let wk_imag = 0;
+            for (let k = 0; k < halfLen; k++) {
+                const u_real = real[i + k];
+                const u_imag = imag[i + k];
+                const v_real = real[i + k + halfLen] * wk_real - imag[i + k + halfLen] * wk_imag;
+                const v_imag = real[i + k + halfLen] * wk_imag + imag[i + k + halfLen] * wk_real;
+                
+                real[i + k] = u_real + v_real;
+                imag[i + k] = u_imag + v_imag;
+                real[i + k + halfLen] = u_real - v_real;
+                imag[i + k + halfLen] = u_imag - v_imag;
 
-    for (let k = 0; k < n / 2; k++) {
-        const angle = -2 * Math.PI * k / n;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        
-        const tReal = cos * odd.real[k] - sin * odd.imag[k];
-        const tImag = sin * odd.real[k] + cos * odd.imag[k];
-
-        real[k] = even.real[k] + tReal;
-        imag[k] = even.imag[k] + tImag;
-        real[k + n / 2] = even.real[k] - tReal;
-        imag[k + n / 2] = even.imag[k] - tImag;
+                const next_wk_real = wk_real * w_real - wk_imag * w_imag;
+                wk_imag = wk_real * w_imag + wk_imag * w_real;
+                wk_real = next_wk_real;
+            }
+        }
     }
     return { real, imag };
 };
 
 const calculateFFT = (data, samplingRate) => {
-    const power = Math.ceil(Math.log2(data.length));
+    const power = data.length > 0 ? Math.ceil(Math.log2(data.length)) : 0;
     const paddedLength = Math.pow(2, power);
-    const paddedData = [...data, ...Array(paddedLength - data.length).fill(0)];
+    const paddedData = new Array(paddedLength).fill(0);
+    for (let i = 0; i < data.length; i++) {
+        paddedData[i] = data[i];
+    }
     
     const { real, imag } = fft(paddedData);
 
