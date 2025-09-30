@@ -1,0 +1,5 @@
+{
+  "name": "Signal Analysis Pro",
+  "description": "An advanced signal analysis tool to upload WAV or CSV files, visualize multi-channel data through waveforms, FFTs, and spectrograms. Features interactive plots with zooming, downloading, and pre-visualization filtering options like bandpass, highpass, and lowpass.",
+  "requestFramePermissions": []
+}
