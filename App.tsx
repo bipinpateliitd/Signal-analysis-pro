@@ -31,12 +31,27 @@ const App: React.FC = () => {
             return;
         }
         setError(null);
-        setSignalData(data);
+
+        // Preprocessing Step: Remove DC Offset (Zero-Mean) from every channel
+        const zeroMeanChannels = data.channels.map(channel => {
+            if (channel.length === 0) return [];
+            const sum = channel.reduce((acc, val) => acc + val, 0);
+            const mean = sum / channel.length;
+            return channel.map(val => val - mean);
+        });
+
+        const processedSignalData: SignalData = {
+            ...data,
+            channels: zeroMeanChannels,
+        };
+
+        setSignalData(processedSignalData);
         setFileName(name);
-        setMaxFrequency(data.samplingRate / 2);
-        const initialChannels = Array.from({ length: Math.min(3, data.channels.length) }, (_, i) => i);
+        const nyquist = processedSignalData.samplingRate / 2;
+        setMaxFrequency(Math.min(6000, nyquist));
+        const initialChannels = Array.from({ length: Math.min(3, processedSignalData.channels.length) }, (_, i) => i);
         setSelectedChannels(initialChannels);
-        setProcessedData(data.channels); // Initially, processed data is raw data
+        setProcessedData(processedSignalData.channels);
     };
     
     const handleReset = () => {
