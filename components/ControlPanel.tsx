@@ -1,5 +1,5 @@
 import React from 'react';
-import { FilterType, FilterSettings } from '../types';
+import { FilterType, FilterSettings, ChannelRoles, ChannelRole } from '../types';
 import { InfoIcon } from './icons';
 
 interface ControlPanelProps {
@@ -16,6 +16,10 @@ interface ControlPanelProps {
   onMaxFrequencyChange: (freq: number) => void;
   headerInfo?: Record<string, string>;
   channelNames?: string[];
+  isNormalizationEnabled: boolean;
+  onNormalizationChange: (enabled: boolean) => void;
+  channelRoles: ChannelRoles;
+  onChannelRolesChange: (roles: ChannelRoles) => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -32,6 +36,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onMaxFrequencyChange,
   headerInfo,
   channelNames,
+  isNormalizationEnabled,
+  onNormalizationChange,
+  channelRoles,
+  onChannelRolesChange,
 }) => {
   const handleChannelToggle = (channelIndex: number) => {
     const newSelection = selectedChannels.includes(channelIndex)
@@ -40,6 +48,42 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onChannelSelectionChange(newSelection);
   };
   
+  const handleFilterTypeChange = (newType: FilterType) => {
+    let newCutoff: number | [number, number];
+    switch (newType) {
+        case FilterType.LOWPASS:
+            newCutoff = 5000;
+            break;
+        case FilterType.HIGHPASS:
+            newCutoff = 500;
+            break;
+        case FilterType.BANDPASS:
+            newCutoff = [500, 6000];
+            break;
+        case FilterType.NONE:
+        default:
+            newCutoff = 1000; // Original default for 'none' state
+            break;
+    }
+    onFilterSettingsChange({ type: newType, cutoff: newCutoff });
+  };
+  
+  const handleRoleChange = (role: ChannelRole, value: string) => {
+      const channelIndex = value === 'none' ? null : parseInt(value, 10);
+      
+      // Prevent assigning the same channel to multiple roles by un-assigning it from other roles
+      const newRoles = { ...channelRoles };
+      if (channelIndex !== null) {
+          (Object.keys(newRoles) as ChannelRole[]).forEach(key => {
+              if (newRoles[key] === channelIndex && key !== role) {
+                  newRoles[key] = null;
+              }
+          });
+      }
+      newRoles[role] = channelIndex;
+      onChannelRolesChange(newRoles);
+  };
+
   const allChannels = Array.from({ length: numChannels }, (_, i) => i);
   const nyquist = samplingRate / 2;
 
@@ -89,6 +133,28 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       </div>
 
        <div>
+        <h2 className="text-xl font-bold mb-3 text-white">DOA Settings</h2>
+        <div className="space-y-3">
+             {(['hydrophone', 'vx', 'vy'] as ChannelRole[]).map(role => (
+                <div key={role}>
+                    <label htmlFor={`role-${role}`} className="block text-sm font-medium text-gray-400 mb-1 capitalize">{role} (P, Vx, Vy)</label>
+                    <select
+                        id={`role-${role}`}
+                        value={channelRoles[role] ?? 'none'}
+                        onChange={e => handleRoleChange(role, e.target.value)}
+                        className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
+                    >
+                        <option value="none">-- Select Channel --</option>
+                        {allChannels.map(index => (
+                            <option key={index} value={index}>{channelNames?.[index] || `Channel ${index + 1}`}</option>
+                        ))}
+                    </select>
+                </div>
+            ))}
+        </div>
+      </div>
+
+       <div>
         <h2 className="text-xl font-bold mb-3 text-white">Display Settings</h2>
         <div>
           <label htmlFor="max-freq" className="block text-sm font-medium text-gray-400 mb-1">Max Frequency (Hz)</label>
@@ -113,7 +179,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             <select
               id="filter-type"
               value={filterSettings.type}
-              onChange={e => onFilterSettingsChange({ ...filterSettings, type: e.target.value as FilterType })}
+              onChange={e => handleFilterTypeChange(e.target.value as FilterType)}
               className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
             >
               <option value={FilterType.NONE}>None</option>
@@ -156,8 +222,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <input
                   type="number"
                   id="low-cutoff"
-                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 100}
-                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [Number(e.target.value), (Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 1000)] })}
+                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 500}
+                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [Number(e.target.value), (Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 6000)] })}
                   className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
                 />
               </div>
@@ -166,8 +232,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <input
                   type="number"
                   id="high-cutoff"
-                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 1000}
-                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [(Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 100), Number(e.target.value)] })}
+                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 6000}
+                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [(Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 500), Number(e.target.value)] })}
                   className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
                 />
               </div>
@@ -176,6 +242,26 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       </div>
       
+       <div>
+        <h2 className="text-xl font-bold mb-3 text-white">Post-Processing</h2>
+        <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+                type="checkbox"
+                checked={isNormalizationEnabled}
+                onChange={(e) => onNormalizationChange(e.target.checked)}
+                className="form-checkbox h-5 w-5 text-secondary bg-base-300 border-gray-600 rounded focus:ring-secondary"
+            />
+            <span className="text-gray-200">Normalize Signals (RMS)</span>
+            <div className="relative group flex items-center">
+                <InfoIcon />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-base-300 text-xs text-gray-300 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    Equalizes sensor sensitivities and prevents one channel from dominating analysis. Recommended.
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-base-300"></div>
+                </div>
+            </div>
+        </label>
+      </div>
+
       <button
         onClick={onApplyFilters}
         disabled={isLoading}
@@ -190,12 +276,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             Processing...
           </>
         ) : (
-          'Apply Filters'
+          'Apply Filters & Normalize'
         )}
       </button>
        <div className="flex items-start gap-2 text-xs text-gray-500 pt-2">
             <InfoIcon/>
-            <span>Note: Filtering large files may take a moment. The analysis will update after processing.</span>
+            <span>Note: Processing large files may take a moment. The analysis will update after completion.</span>
         </div>
     </div>
   );
