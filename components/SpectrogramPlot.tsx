@@ -176,7 +176,9 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
 
   // Effect for drawing the spectrogram on canvas
   useEffect(() => {
-    if (!stftData || !canvasRef.current || !containerRef.current) return;
+    // @ts-ignore
+    const d3 = window.d3;
+    if (!d3 || !stftData || !canvasRef.current || !containerRef.current) return;
 
     const { stft, maxMagnitude } = stftData;
     const canvas = canvasRef.current;
@@ -199,7 +201,6 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
     const dynamicRange = 80; // 80 dB dynamic range
     const minMagnitude = maxMagnitude - dynamicRange;
 
-    // @ts-ignore
     const colorScale = d3.scaleSequential(d3.interpolateInferno).domain([minMagnitude, maxMagnitude]);
     
     const numTimeBins = stft.length;

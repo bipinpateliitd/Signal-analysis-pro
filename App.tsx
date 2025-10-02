@@ -25,33 +25,19 @@ const App: React.FC = () => {
 
 
     const handleFileUpload = (data: SignalData, name: string) => {
-        if (data.channels.length < 3) {
+        setShowWelcome(false);
+        if (data.channels.length <= 3) {
             setError("The uploaded file must have more than 3 channels.");
             setSignalData(null);
             return;
         }
         setError(null);
-
-        // Preprocessing Step: Remove DC Offset (Zero-Mean) from every channel
-        const zeroMeanChannels = data.channels.map(channel => {
-            if (channel.length === 0) return [];
-            const sum = channel.reduce((acc, val) => acc + val, 0);
-            const mean = sum / channel.length;
-            return channel.map(val => val - mean);
-        });
-
-        const processedSignalData: SignalData = {
-            ...data,
-            channels: zeroMeanChannels,
-        };
-
-        setSignalData(processedSignalData);
+        setSignalData(data);
         setFileName(name);
-        const nyquist = processedSignalData.samplingRate / 2;
-        setMaxFrequency(Math.min(6000, nyquist));
-        const initialChannels = Array.from({ length: Math.min(3, processedSignalData.channels.length) }, (_, i) => i);
+        setMaxFrequency(data.samplingRate / 2);
+        const initialChannels = Array.from({ length: Math.min(3, data.channels.length) }, (_, i) => i);
         setSelectedChannels(initialChannels);
-        setProcessedData(processedSignalData.channels);
+        setProcessedData(data.channels); // Initially, processed data is raw data
     };
     
     const handleReset = () => {

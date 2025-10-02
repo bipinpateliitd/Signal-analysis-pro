@@ -1,103 +1,143 @@
-import React, { useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { calculateFFT } from '../services/signalProcessor';
 import { PlotPoint } from '../types';
 
-interface FftPlotProps {
-  data: number[];
-  samplingRate: number;
-  maxFrequency: number;
-}
+const MAX_POINTS = 5000;
 
-const MAX_POINTS = 5000; // Can use more points now with AreaChart
-
-const formatMagnitudeTick = (value: number): string => {
-    if (value === 0) return '0';
-    return value.toExponential(1);
+// Custom hook to handle responsive SVG sizing
+const useResponsiveSVG = (containerRef: React.RefObject<HTMLDivElement>) => {
+    const [size, setSize] = useState({ width: 0, height: 0 });
+    useEffect(() => {
+        const resizeObserver = new ResizeObserver(entries => {
+            if (entries && entries.length > 0) {
+                const { width, height } = entries[0].contentRect;
+                setSize({ width, height });
+            }
+        });
+        if (containerRef.current) resizeObserver.observe(containerRef.current);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => { if (containerRef.current) resizeObserver.unobserve(containerRef.current); };
+    }, [containerRef]);
+    return size;
 };
 
-const formatMagnitudeTooltip = (value: number): string => {
-    if (value === 0) return '0';
-    return value.toExponential(3);
-};
+export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFrequency: number }> = ({ data, samplingRate, maxFrequency }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const { width, height } = useResponsiveSVG(containerRef);
 
+    const plotData = useMemo<PlotPoint[]>(() => {
+        const { magnitudes, frequencies } = calculateFFT(data, samplingRate);
+        const rawPlotData = magnitudes.map((mag, i) => ({
+            x: frequencies[i],
+            y: mag,
+        })).filter(p => p.x <= maxFrequency);
 
-export const FftPlot: React.FC<FftPlotProps> = ({ data, samplingRate, maxFrequency }) => {
-  const plotData = useMemo<PlotPoint[]>(() => {
-    const { magnitudes, frequencies } = calculateFFT(data, samplingRate);
-    
-    const rawPlotData = magnitudes.map((mag, i) => ({
-      x: frequencies[i],
-      y: mag,
-    })).filter(p => p.x <= maxFrequency);
-
-
-    if (rawPlotData.length <= MAX_POINTS) {
-      return rawPlotData;
-    }
-
-    // Downsample using a max-hold approach to preserve peaks
-    const step = Math.ceil(rawPlotData.length / MAX_POINTS);
-    const binnedData: PlotPoint[] = [];
-     for (let i = 0; i < rawPlotData.length; i += step) {
-        const chunk = rawPlotData.slice(i, i + step);
-        if (chunk.length > 0) {
-            const maxPoint = chunk.reduce((max, p) => p.y > max.y ? p : max, chunk[0]);
-            binnedData.push(maxPoint);
+        if (rawPlotData.length <= MAX_POINTS) return rawPlotData;
+        
+        const step = Math.ceil(rawPlotData.length / MAX_POINTS);
+        const binnedData: PlotPoint[] = [];
+        for (let i = 0; i < rawPlotData.length; i += step) {
+            const chunk = rawPlotData.slice(i, i + step);
+            if (chunk.length > 0) {
+                const maxPoint = chunk.reduce((max, p) => p.y > max.y ? p : max, chunk[0]);
+                binnedData.push(maxPoint);
+            }
         }
-    }
-    return binnedData;
+        return binnedData;
+    }, [data, samplingRate, maxFrequency]);
 
-  }, [data, samplingRate, maxFrequency]);
+    useEffect(() => {
+        // @ts-ignore
+        const d3 = window.d3;
+        if (!d3 || !svgRef.current || width === 0 || height === 0 || !plotData.length) return;
 
-  return (
-    <div className="w-full h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={plotData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
-        >
-          <defs>
-            <linearGradient id="colorMagnitude" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#9333ea" stopOpacity={0.8}/>
-              <stop offset="95%" stopColor="#9333ea" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-          <XAxis 
-            dataKey="x" 
-            type="number"
-            domain={[0, maxFrequency]}
-            allowDataOverflow={true}
-            label={{ value: 'Frequency (Hz)', position: 'insideBottom', offset: -15, fill: '#9ca3af' }}
-            stroke="#9ca3af"
-            tickFormatter={(freq) => freq >= 1000 ? `${(freq/1000).toFixed(0)}k` : freq.toFixed(0)}
-          />
-          <YAxis 
-            label={{ value: 'Magnitude', angle: -90, position: 'insideLeft', fill: '#9ca3af' }} 
-            stroke="#9ca3af"
-            tickFormatter={formatMagnitudeTick}
-            domain={[0, 'auto']}
-          />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}
-            labelStyle={{ color: '#d1d5db' }}
-            formatter={(value: number) => [formatMagnitudeTooltip(value), "Magnitude"]}
-            labelFormatter={(label: number) => `Frequency: ${label.toFixed(2)} Hz`}
-            cursor={{ fill: 'rgba(147, 51, 234, 0.1)' }}
-          />
-          <Legend wrapperStyle={{color: '#d1d5db'}} />
-          <Area 
-            type="monotone"
-            dataKey="y" 
-            name="Magnitude"
-            stroke="#9333ea"
-            strokeWidth={1.5}
-            fillOpacity={1} 
-            fill="url(#colorMagnitude)"
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
+        const margin = { top: 20, right: 30, bottom: 50, left: 70 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+        
+        const svg = d3.select(svgRef.current);
+        svg.selectAll("*").remove();
+
+        const xDomain = [0, maxFrequency];
+        const yMax = d3.max(plotData, (d: PlotPoint) => d.y);
+        const yDomain = [0, yMax === 0 ? 1 : yMax * 1.1];
+
+        const xScale = d3.scaleLinear().domain(xDomain).range([0, chartWidth]);
+        const yScale = d3.scaleLinear().domain(yDomain).range([chartHeight, 0]);
+
+        const xAxis = d3.axisBottom(xScale).ticks(7).tickFormat((freq: any) => freq >= 1000 ? `${(freq/1000).toFixed(0)}k` : freq.toFixed(0));
+        const yAxis = d3.axisLeft(yScale).ticks(5).tickFormat((d: any) => Number(d).toExponential(1));
+
+        const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        chartG.append("g")
+            .attr("class", "grid")
+            .attr("transform", `translate(0,${chartHeight})`)
+            .call(d3.axisBottom(xScale).ticks(10).tickSize(-chartHeight).tickFormat(""))
+            .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+
+        chartG.append("g")
+            .attr("class", "grid")
+            .call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat(""))
+            .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+
+        const xAxisG = chartG.append("g")
+            .attr("transform", `translate(0,${chartHeight})`)
+            .call(xAxis);
+        const yAxisG = chartG.append("g").call(yAxis);
+        
+        xAxisG.selectAll("text").style("fill", "#9ca3af");
+        xAxisG.selectAll("line, path").style("stroke", "#374151");
+        yAxisG.selectAll("text").style("fill", "#9ca3af");
+        yAxisG.selectAll("line, path").style("stroke", "#374151");
+
+        svg.append("text")
+           .attr("transform", `translate(${margin.left + chartWidth / 2}, ${height - margin.bottom + 40})`)
+           .style("text-anchor", "middle").style("fill", "#9ca3af")
+           .text("Frequency (Hz)");
+
+        svg.append("text")
+           .attr("transform", "rotate(-90)")
+           .attr("y", 0)
+           .attr("x", 0 - (chartHeight / 2) - margin.top)
+           .attr("dy", "1em")
+           .style("text-anchor", "middle").style("fill", "#9ca3af")
+           .text("Magnitude");
+
+        const area = d3.area()
+            .x((d: any) => xScale(d.x))
+            .y0(chartHeight)
+            .y1((d: any) => yScale(d.y));
+        
+        const line = d3.line()
+            .x((d: any) => xScale(d.x))
+            .y((d: any) => yScale(d.y));
+
+        const defs = svg.append("defs");
+        const gradient = defs.append("linearGradient")
+            .attr("id", "fft-gradient")
+            .attr("x1", "0%").attr("y1", "0%").attr("x2", "0%").attr("y2", "100%");
+        gradient.append("stop").attr("offset", "0%").attr("stop-color", "#9333ea").attr("stop-opacity", 0.5);
+        gradient.append("stop").attr("offset", "100%").attr("stop-color", "#9333ea").attr("stop-opacity", 0);
+
+        chartG.append("path")
+            .datum(plotData)
+            .attr("fill", "url(#fft-gradient)")
+            .attr("d", area);
+
+        chartG.append("path")
+            .datum(plotData)
+            .attr("fill", "none")
+            .attr("stroke", "#9333ea")
+            .attr("stroke-width", 1.5)
+            .attr("d", line);
+
+    }, [plotData, width, height, maxFrequency]);
+
+    return (
+        <div ref={containerRef} className="w-full h-80">
+            <svg ref={svgRef} width={width} height={height}></svg>
+        </div>
+    );
 };

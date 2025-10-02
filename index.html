@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -28,7 +27,7 @@
         },
       }
     </script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
@@ -41,11 +40,12 @@
 </head>
   <body class="bg-base-100 text-gray-200">
     <div id="root"></div>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- External libraries, loaded globally -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+    
+    <!-- Main application entry point -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

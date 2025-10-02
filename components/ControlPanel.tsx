@@ -51,27 +51,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onMaxFrequencyChange(value);
   };
 
-  const handleFilterTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newType = e.target.value as FilterType;
-    let newCutoff: number | [number, number];
-
-    switch (newType) {
-      case FilterType.LOWPASS:
-        newCutoff = 600;
-        break;
-      case FilterType.HIGHPASS:
-        newCutoff = 500;
-        break;
-      case FilterType.BANDPASS:
-        newCutoff = [500, 6000];
-        break;
-      default: // NONE
-        newCutoff = 1000;
-        break;
-    }
-    onFilterSettingsChange({ type: newType, cutoff: newCutoff });
-  };
-
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-lg space-y-6 sticky top-8">
       <div>
@@ -134,7 +113,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             <select
               id="filter-type"
               value={filterSettings.type}
-              onChange={handleFilterTypeChange}
+              onChange={e => onFilterSettingsChange({ ...filterSettings, type: e.target.value as FilterType })}
               className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
             >
               <option value={FilterType.NONE}>None</option>
@@ -177,8 +156,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <input
                   type="number"
                   id="low-cutoff"
-                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 500}
-                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [Number(e.target.value), (Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 6000)] })}
+                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 100}
+                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [Number(e.target.value), (Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 1000)] })}
                   className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
                 />
               </div>
@@ -187,8 +166,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <input
                   type="number"
                   id="high-cutoff"
-                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 6000}
-                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [(Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 500), Number(e.target.value)] })}
+                  value={Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[1] : 1000}
+                  onChange={e => onFilterSettingsChange({ ...filterSettings, cutoff: [(Array.isArray(filterSettings.cutoff) ? filterSettings.cutoff[0] : 100), Number(e.target.value)] })}
                   className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
                 />
               </div>
