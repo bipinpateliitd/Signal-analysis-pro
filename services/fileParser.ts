@@ -1,4 +1,8 @@
-import { SignalData } from '../types';
+import { SignalData, OrientationData } from '../types';
+
+// FIX: Add declaration for XLSX to resolve 'Cannot find name' error.
+// This assumes XLSX is loaded globally from a script tag.
+declare var XLSX: any;
 
 // Use browser-native AudioContext for robust WAV parsing
 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -203,4 +207,52 @@ export const parseCsv = (file: File): Promise<SignalData> => {
     };
     reader.readAsText(file);
   });
+};
+
+export const parseXlsx = (file: File): Promise<OrientationData[]> => {
+    return new Promise((resolve, reject) => {
+        if (typeof XLSX === 'undefined') {
+            return reject(new Error('XLSX library is not loaded.'));
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = event.target?.result;
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json: (number[])[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                const orientationData: OrientationData[] = [];
+                for (let i = 0; i < json.length; i++) {
+                    const row = json[i];
+                    if (row.length >= 4) {
+                        const time = parseFloat(String(row[0]));
+                        const roll = parseFloat(String(row[1]));
+                        const pitch = parseFloat(String(row[2]));
+                        const yaw = parseFloat(String(row[3]));
+
+                        if (!isNaN(time) && !isNaN(roll) && !isNaN(pitch) && !isNaN(yaw)) {
+                            orientationData.push({ time, roll, pitch, yaw });
+                        }
+                    }
+                }
+
+                if (orientationData.length === 0) {
+                    return reject(new Error('No valid orientation data found in the XLSX file. Ensure the first four columns are Time, Roll, Pitch, Yaw.'));
+                }
+                
+                // Sort by time just in case
+                orientationData.sort((a, b) => a.time - b.time);
+
+                resolve(orientationData);
+            } catch (error) {
+                reject(error instanceof Error ? error : new Error('An unexpected error occurred during XLSX parsing.'));
+            }
+        };
+        reader.onerror = () => {
+            reject(new Error('Error reading the file.'));
+        };
+        reader.readAsArrayBuffer(file);
+    });
 };

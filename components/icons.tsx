@@ -24,6 +24,17 @@ export const ChevronDownIcon: React.FC = () => (
     </svg>
 );
 
+export const PlayIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg className={className} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.879 7.519A1 1 0 008 8.447v3.106a1 1 0 001.879.528l2.5-1.553a1 1 0 000-1.056l-2.5-1.553z"></path>
+    </svg>
+);
+
+export const PauseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg className={className} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h1a1 1 0 001-1V8a1 1 0 00-1-1H8zm3 0a1 1 0 00-1 1v4a1 1 0 001 1h1a1 1 0 001-1V8a1 1 0 00-1-1h-1z" clipRule="evenodd"></path>
+    </svg>
+);
 
 export const KairosFullLogo: React.FC<{ className?: string }> = ({ className = 'w-64 h-auto' }) => (
     <svg viewBox="0 0 200 80" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -77,4 +88,30 @@ export const KairosHeaderLogo: React.FC<{ className?: string }> = ({ className =
         </g>
         <circle cx="15" cy="25" r="3" fill="#facc15" />
     </svg>
+);
+
+export const SubmarineIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 200 80" className={className} xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="hull-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor="#9ca3af" />
+        <stop offset="100%" stopColor="#4b5563" />
+      </linearGradient>
+    </defs>
+    <g transform="translate(0, 10)">
+      {/* Back Fins */}
+      <path d="M170,30 L195,5 L195,55 L170,30 Z" fill="#6b7280"/>
+      <path d="M175,30 L190,20 L190,40 Z" fill="#374151"/>
+      
+      {/* Main Hull */}
+      <ellipse cx="100" cy="30" rx="100" ry="25" fill="url(#hull-gradient)" />
+      
+      {/* Conning Tower */}
+      <path d="M60,6 L140,6 L130,-10 L70,-10 Z" fill="#6b7280" />
+      <ellipse cx="100" cy="6" rx="40" ry="8" fill="#9ca3af" />
+
+      {/* Front detail */}
+      <circle cx="10" cy="30" r="5" fill="#374151" />
+    </g>
+  </svg>
 );

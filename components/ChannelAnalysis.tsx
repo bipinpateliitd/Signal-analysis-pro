@@ -6,6 +6,9 @@ import { DownloadIcon, ChevronDownIcon } from './icons';
 import { calculateFFT, calculateWelchPsd, estimateNoise, detectTonals, calculateDoaVsTime } from '../services/signalProcessor';
 import { NoiseInfo, PlotPoint, PersistentTonal, ChannelRoles, DoaPoint } from '../types';
 
+// FIX: Add declarations for global libraries d3 and htmlToImage to avoid TypeScript errors.
+declare var d3: any;
+declare var htmlToImage: any;
 
 const useResponsiveSVG = (containerRef: React.RefObject<HTMLDivElement>) => {
     const [size, setSize] = useState({ width: 0, height: 0 });
@@ -35,8 +38,6 @@ const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: numbe
     }, [freqs, psd_db, maxFrequency]);
 
     useEffect(() => {
-        // @ts-ignore
-        const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || plotData.length === 0) return;
 
         const margin = { top: 20, right: 30, bottom: 50, left: 70 };
@@ -96,8 +97,6 @@ const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number
     const plotData = useMemo(() => frameTimes.map((t, i) => ({ time: t, energy: frameEnergies[i], isNoise: noiseMask[i] })), [frameTimes, frameEnergies, noiseMask]);
 
     useEffect(() => {
-        // @ts-ignore
-        const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || plotData.length === 0) return;
 
         const margin = { top: 20, right: 30, bottom: 50, left: 70 };
@@ -255,8 +254,6 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
     }, [channelData, samplingRate, maxFrequency]);
     
     useEffect(() => {
-        // @ts-ignore
-        const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || plotData.length === 0) return;
 
         const margin = { top: 20, right: 30, bottom: 50, left: 70 };
@@ -462,8 +459,6 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
     const { width, height } = useResponsiveSVG(containerRef);
 
     useEffect(() => {
-        // @ts-ignore
-        const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || data.length === 0) return;
 
         const margin = { top: 20, right: 80, bottom: 50, left: 70 };
@@ -734,11 +729,12 @@ interface ChannelAnalysisProps {
   maxFrequency: number;
   channelRoles: ChannelRoles;
   isGridVisible: boolean;
+  currentTime: number;
 }
 
 type Tab = 'waveform' | 'fft' | 'spectrogram' | 'noise' | 'tonals' | 'doa';
 
-export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, allChannelsData, samplingRate, maxFrequency, channelRoles, isGridVisible }) => {
+export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, allChannelsData, samplingRate, maxFrequency, channelRoles, isGridVisible, currentTime }) => {
   const [activeTab, setActiveTab] = useState<Tab>('waveform');
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -778,7 +774,6 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   const handleDownloadPng = () => {
     if (plotRef.current === null) return;
     setDownloadMenuOpen(false);
-    // @ts-ignore
     htmlToImage.toPng(plotRef.current, { cacheBust: true, backgroundColor: '#1f2937', pixelRatio: 2 })
       .then((dataUrl) => {
         const link = document.createElement('a');
@@ -792,7 +787,6 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   const handleDownloadSvg = () => {
     if (plotRef.current === null) return;
     setDownloadMenuOpen(false);
-     // @ts-ignore
     htmlToImage.toSvg(plotRef.current, { cacheBust: true })
       .then((dataUrl) => {
         const link = document.createElement('a');
@@ -836,7 +830,7 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   const plotContent = useMemo(() => {
     switch (activeTab) {
       case 'waveform':
-        return <WaveformPlot data={channelData} samplingRate={samplingRate} isGridVisible={isGridVisible} />;
+        return <WaveformPlot data={channelData} samplingRate={samplingRate} isGridVisible={isGridVisible} currentTime={currentTime} />;
       case 'fft':
         return <FftPlot data={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} isGridVisible={isGridVisible} />;
       case 'spectrogram':
@@ -850,7 +844,7 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
       default:
         return null;
     }
-  }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, allChannelsData, channelRoles, persistentTonals, isGridVisible]);
+  }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, allChannelsData, channelRoles, persistentTonals, isGridVisible, currentTime]);
 
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-lg">

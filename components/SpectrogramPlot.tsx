@@ -1,5 +1,8 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 
+// FIX: Declare d3 as a global variable to fix TypeScript errors.
+declare var d3: any;
+
 // The worker code is self-contained plain JavaScript for STFT calculation.
 const workerCode = `
 // Iterative FFT (Cooley-Tukey)
@@ -176,8 +179,6 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
 
   // Effect for drawing the spectrogram on canvas
   useEffect(() => {
-    // @ts-ignore
-    const d3 = window.d3;
     if (!d3 || !stftData || !canvasRef.current || !containerRef.current) return;
 
     const { stft, maxMagnitude } = stftData;

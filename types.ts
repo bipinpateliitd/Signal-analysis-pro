@@ -1,5 +1,4 @@
 
-// FIX: Removed circular import of SignalData from './types'. The type is defined in this file, so importing it from itself is an error.
 export enum FilterType {
     NONE = 'none',
     LOWPASS = 'lowpass',
@@ -61,4 +60,11 @@ export interface DoaPoint {
     time: number;
     doa: number;
     confidence: number;
+}
+
+export interface OrientationData {
+    time: number;
+    roll: number;
+    pitch: number;
+    yaw: number;
 }

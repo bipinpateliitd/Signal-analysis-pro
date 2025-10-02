@@ -1,6 +1,9 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { PlotPoint } from '../types';
 
+// FIX: Declare d3 as a global variable to fix TypeScript errors.
+declare var d3: any;
+
 // To avoid performance issues, we downsample the data for visualization
 const MAX_POINTS = 5000;
 
@@ -31,7 +34,7 @@ const useResponsiveSVG = (containerRef: React.RefObject<HTMLDivElement>) => {
     return size;
 };
 
-export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGridVisible: boolean; }> = ({ data, samplingRate, isGridVisible }) => {
+export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGridVisible: boolean; currentTime: number; }> = ({ data, samplingRate, isGridVisible, currentTime }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -48,8 +51,6 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
     }, [data, samplingRate]);
 
     useEffect(() => {
-        // @ts-ignore
-        const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || !plotData.length) return;
 
         const margin = { top: 20, right: 30, bottom: 60, left: 60 };
@@ -63,11 +64,9 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
         const fullXDomain = d3.extent(plotData, (d: PlotPoint) => d.x);
         const yExtent = d3.extent(plotData, (d: PlotPoint) => d.y);
 
-        // --- ROBUSTNESS CHECK ---
-        // Ensure domains are valid before proceeding
         if (!fullXDomain || fullXDomain.some(v => v === undefined || !isFinite(v)) ||
             !yExtent || yExtent.some(v => v === undefined || !isFinite(v))) {
-          return; // Don't render if data is invalid
+          return;
         }
         
         const padding = (yExtent[1] - yExtent[0]) * 0.1 || 1;
@@ -84,18 +83,8 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
         
         if (isGridVisible) {
-            // Horizontal grid lines
-            chartG.append("g")
-                .attr("class", "grid")
-                .call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat(""))
-                .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
-            
-            // Vertical grid lines
-            chartG.append("g")
-                .attr("class", "grid")
-                .attr("transform", `translate(0,${mainChartHeight})`)
-                .call(d3.axisBottom(xScale).ticks(7).tickSize(-mainChartHeight).tickFormat(""))
-                .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g").attr("class", "grid").attr("transform", `translate(0,${mainChartHeight})`).call(d3.axisBottom(xScale).ticks(7).tickSize(-mainChartHeight).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
         }
 
         chartG.append("defs").append("clipPath")
@@ -104,10 +93,7 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
             .attr("width", chartWidth)
             .attr("height", mainChartHeight);
 
-        const xAxisG = chartG.append("g")
-            .attr("transform", `translate(0,${mainChartHeight})`)
-            .call(xAxis);
-        
+        const xAxisG = chartG.append("g").attr("transform", `translate(0,${mainChartHeight})`).call(xAxis);
         const yAxisG = chartG.append("g").call(yAxis);
         
         xAxisG.selectAll("text").style("fill", "#9ca3af");
@@ -115,33 +101,38 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
         yAxisG.selectAll("text").style("fill", "#9ca3af");
         yAxisG.selectAll("line, path").style("stroke", "#374151");
 
-        svg.append("text")
-           .attr("transform", `translate(${margin.left + chartWidth / 2}, ${height - margin.bottom + 10})`)
-           .style("text-anchor", "middle")
-           .style("fill", "#9ca3af")
-           .text("Time (s)");
+        svg.append("text").attr("transform", `translate(${margin.left + chartWidth / 2}, ${height - margin.bottom + 10})`).style("text-anchor", "middle").style("fill", "#9ca3af").text("Time (s)");
+        svg.append("text").attr("transform", "rotate(-90)").attr("y", 0).attr("x", 0 - (mainChartHeight / 2) - margin.top).attr("dy", "1em").style("text-anchor", "middle").style("fill", "#9ca3af").text("Amplitude");
 
-        svg.append("text")
-           .attr("transform", "rotate(-90)")
-           .attr("y", 0)
-           .attr("x", 0 - (mainChartHeight / 2) - margin.top)
-           .attr("dy", "1em")
-           .style("text-anchor", "middle")
-           .style("fill", "#9ca3af")
-           .text("Amplitude");
+        const line = d3.line().x((d: any) => xScale(d.x)).y((d: any) => yScale(d.y));
 
+        const mainChartContent = chartG.append("g").attr("clip-path", "url(#clip)");
 
-        const line = d3.line()
-            .x((d: any) => xScale(d.x))
-            .y((d: any) => yScale(d.y));
-
-        chartG.append("path")
+        mainChartContent.append("path")
             .datum(plotData)
             .attr("fill", "none")
             .attr("stroke", "#3b82f6")
             .attr("stroke-width", 1.5)
-            .attr("d", line)
-            .attr("clip-path", "url(#clip)");
+            .attr("d", line);
+
+        const timeCursor = mainChartContent.append("line")
+            .attr("class", "time-cursor")
+            .attr("y1", 0)
+            .attr("y2", mainChartHeight)
+            .attr("stroke", "#facc15")
+            .attr("stroke-width", 1.5)
+            .attr("stroke-dasharray", "4 4");
+            
+        const updateCursor = (time: number) => {
+            const xPos = xScale(time);
+            if (time >= xDomain[0] && time <= xDomain[1]) {
+                timeCursor.attr("x1", xPos).attr("x2", xPos).style("visibility", "visible");
+            } else {
+                timeCursor.style("visibility", "hidden");
+            }
+        };
+
+        updateCursor(currentTime);
         
         // Brush
         const brushXScale = d3.scaleLinear().domain(fullXDomain).range([0, chartWidth]);
@@ -150,9 +141,7 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
         const brushContext = svg.append("g")
             .attr("transform", `translate(${margin.left},${margin.top + mainChartHeight + 20})`);
         
-        const brushLine = d3.line()
-            .x((d: any) => brushXScale(d.x))
-            .y((d: any) => brushYScale(d.y));
+        const brushLine = d3.line().x((d: any) => brushXScale(d.x)).y((d: any) => brushYScale(d.y));
             
         brushContext.append("path")
             .datum(plotData)
@@ -177,7 +166,7 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
             .call(brush)
             .call(brush.move, currentDomain ? currentDomain.map(brushXScale) : fullXDomain.map(brushXScale));
 
-    }, [plotData, width, height, currentDomain, isGridVisible]);
+    }, [plotData, width, height, currentDomain, isGridVisible, currentTime]);
 
     return (
         <div ref={containerRef} className="w-full h-80">

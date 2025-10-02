@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { FilterType, FilterSettings, ChannelRoles, ChannelRole } from '../types';
 import { InfoIcon } from './icons';
 
@@ -22,6 +22,9 @@ interface ControlPanelProps {
   onChannelRolesChange: (roles: ChannelRoles) => void;
   isGridVisible: boolean;
   onGridVisibilityChange: (visible: boolean) => void;
+  onOrientationUpload: (file: File) => void;
+  onClearOrientation: () => void;
+  orientationFileName: string;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -44,7 +47,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onChannelRolesChange,
   isGridVisible,
   onGridVisibilityChange,
+  onOrientationUpload,
+  onClearOrientation,
+  orientationFileName,
 }) => {
+  const orientationFileRef = useRef<HTMLInputElement>(null);
+
   const handleChannelToggle = (channelIndex: number) => {
     const newSelection = selectedChannels.includes(channelIndex)
       ? selectedChannels.filter(c => c !== channelIndex)
@@ -75,7 +83,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleRoleChange = (role: ChannelRole, value: string) => {
       const channelIndex = value === 'none' ? null : parseInt(value, 10);
       
-      // Prevent assigning the same channel to multiple roles by un-assigning it from other roles
       const newRoles = { ...channelRoles };
       if (channelIndex !== null) {
           (Object.keys(newRoles) as ChannelRole[]).forEach(key => {
@@ -86,6 +93,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       }
       newRoles[role] = channelIndex;
       onChannelRolesChange(newRoles);
+  };
+  
+  const handleOrientationFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          onOrientationUpload(e.target.files[0]);
+      }
+      // Reset input value to allow re-uploading the same file
+      if(orientationFileRef.current) {
+          orientationFileRef.current.value = '';
+      }
   };
 
   const allChannels = Array.from({ length: numChannels }, (_, i) => i);
@@ -155,6 +172,40 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </select>
                 </div>
             ))}
+        </div>
+      </div>
+      
+       <div>
+        <h2 className="text-xl font-bold mb-3 text-white">Orientation Data</h2>
+        <div className="space-y-2">
+            {!orientationFileName ? (
+                <>
+                    <input
+                        type="file"
+                        accept=".xlsx"
+                        onChange={handleOrientationFileChange}
+                        ref={orientationFileRef}
+                        className="hidden"
+                        id="orientation-file-upload"
+                    />
+                    <label
+                        htmlFor="orientation-file-upload"
+                        className="w-full text-center cursor-pointer bg-base-300 hover:bg-gray-700 text-gray-300 font-bold py-2 px-4 rounded-lg transition-colors duration-200 block"
+                    >
+                       Upload Orientation File (.xlsx)
+                    </label>
+                </>
+            ) : (
+                <div className="bg-base-300 p-2 rounded-lg text-sm">
+                    <p className="text-gray-300 break-all"><span className="font-semibold text-gray-400">File:</span> {orientationFileName}</p>
+                    <button
+                        onClick={onClearOrientation}
+                        className="text-red-400 hover:text-red-300 text-xs mt-1"
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
         </div>
       </div>
 

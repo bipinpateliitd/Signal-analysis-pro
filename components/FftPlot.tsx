@@ -2,6 +2,9 @@ import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { calculateFFT } from '../services/signalProcessor';
 import { PlotPoint } from '../types';
 
+// FIX: Declare d3 as a global variable to fix TypeScript errors.
+declare var d3: any;
+
 const MAX_POINTS = 5000;
 
 // Custom hook to handle responsive SVG sizing
@@ -48,8 +51,6 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
     }, [data, samplingRate, maxFrequency]);
 
     useEffect(() => {
-        // @ts-ignore
-        const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || !plotData.length) return;
 
         const margin = { top: 20, right: 30, bottom: 50, left: 70 };

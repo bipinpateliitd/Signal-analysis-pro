@@ -2,10 +2,12 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { ControlPanel } from './components/ControlPanel';
 import { ChannelAnalysis } from './components/ChannelAnalysis';
-import { SignalData, FilterType, FilterSettings, ChannelRoles } from './types';
+import { SignalData, FilterType, FilterSettings, ChannelRoles, OrientationData } from './types';
 import { applyFilter, normalizeRms } from './services/signalProcessor';
 import { KairosHeaderLogo } from './components/icons';
 import { WelcomeScreen } from './components/WelcomeScreen';
+import { OrientationView } from './components/OrientationView';
+import { parseXlsx } from './services/fileParser';
 
 const App: React.FC = () => {
     const [signalData, setSignalData] = useState<SignalData | null>(null);
@@ -20,11 +22,11 @@ const App: React.FC = () => {
     const [isNormalizationEnabled, setIsNormalizationEnabled] = useState<boolean>(true);
     const [channelRoles, setChannelRoles] = useState<ChannelRoles>({ hydrophone: null, vx: null, vy: null });
     const [isGridVisible, setIsGridVisible] = useState<boolean>(true);
-
+    const [orientationData, setOrientationData] = useState<OrientationData[] | null>(null);
+    const [orientationFileName, setOrientationFileName] = useState<string>('');
+    const [currentTime, setCurrentTime] = useState<number>(0);
 
     useEffect(() => {
-        // Show welcome for a bit, then fade out to show uploader.
-        // It will be controlled by isLoading during file processing.
         if (showWelcome && !isLoading) {
             const timer = setTimeout(() => setShowWelcome(false), 1500);
             return () => clearTimeout(timer);
@@ -33,7 +35,7 @@ const App: React.FC = () => {
 
 
     const handleFileUpload = (data: SignalData, name: string) => {
-        setIsLoading(true); // Keep loading screen up while we set state
+        setIsLoading(true);
         if (data.channels.length <= 3) {
             setError("The uploaded file must have more than 3 channels.");
             setSignalData(null);
@@ -46,12 +48,15 @@ const App: React.FC = () => {
         setMaxFrequency(Math.min(6000, data.samplingRate / 2));
         const initialChannels = Array.from({ length: Math.min(4, data.channels.length) }, (_, i) => i);
         setSelectedChannels(initialChannels);
-        setProcessedData(data.channels); // Initially, processed data is raw data
-        setFilterSettings({ type: FilterType.NONE, cutoff: 1000 }); // Reset filters for new file
-        setIsNormalizationEnabled(true); // Reset normalization setting
-        setChannelRoles({ hydrophone: null, vx: null, vy: null }); // Reset DOA roles
+        setProcessedData(data.channels);
+        setFilterSettings({ type: FilterType.NONE, cutoff: 1000 });
+        setIsNormalizationEnabled(true);
+        setChannelRoles({ hydrophone: null, vx: null, vy: null });
+        setOrientationData(null);
+        setOrientationFileName('');
+        setCurrentTime(0);
         setIsLoading(false);
-        setShowWelcome(false); // Hide welcome after successful load
+        setShowWelcome(false);
     };
     
     const handleReset = () => {
@@ -61,7 +66,33 @@ const App: React.FC = () => {
         setFileName('');
         setProcessedData(null);
         setError(null);
+        setOrientationData(null);
+        setOrientationFileName('');
+        setCurrentTime(0);
         setShowWelcome(true);
+    };
+    
+    const handleOrientationUpload = async (file: File) => {
+        setError(null);
+        setIsLoading(true);
+        try {
+            const data = await parseXlsx(file);
+            setOrientationData(data);
+            setOrientationFileName(file.name);
+            setCurrentTime(data[0]?.time ?? 0);
+        } catch(e) {
+            setError(e instanceof Error ? e.message : "Failed to parse orientation file.");
+            setOrientationData(null);
+            setOrientationFileName('');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleClearOrientation = () => {
+        setOrientationData(null);
+        setOrientationFileName('');
+        setCurrentTime(0);
     };
 
     const handleApplyFilters = useCallback(() => {
@@ -69,10 +100,8 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
 
-        // Use a timeout to allow the UI to update to the loading state
         setTimeout(() => {
             try {
-                // Step 1: Apply filters
                 let newProcessedData = signalData.channels.map(channelData => {
                     if (filterSettings.type === FilterType.NONE) {
                         return channelData;
@@ -80,7 +109,6 @@ const App: React.FC = () => {
                     return applyFilter(channelData, filterSettings.type, filterSettings, signalData.samplingRate);
                 });
                 
-                // Step 2: Apply RMS Normalization if enabled
                 if (isNormalizationEnabled) {
                     newProcessedData = newProcessedData.map(channelData => normalizeRms(channelData));
                 }
@@ -94,7 +122,6 @@ const App: React.FC = () => {
         }, 50);
     }, [signalData, filterSettings, isNormalizationEnabled]);
     
-    // Memoized wrapper to prevent re-renders of all channels when one thing changes
     const ChannelAnalysisWrapper = React.memo(ChannelAnalysis);
 
 
@@ -118,14 +145,17 @@ const App: React.FC = () => {
                 </header>
                 
                 <main className="w-full max-w-7xl flex-grow">
+                     {error && (
+                        <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+                            <strong className="font-bold">Error:</strong>
+                            <span className="block sm:inline ml-2">{error}</span>
+                             <button onClick={() => setError(null)} className="absolute top-0 bottom-0 right-0 px-4 py-3">
+                                <span className="text-2xl">×</span>
+                            </button>
+                        </div>
+                    )}
                     {!signalData ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[60vh] bg-base-200 rounded-xl p-8 border border-dashed border-base-300">
-                             {error && (
-                                <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
-                                    <strong className="font-bold">Error:</strong>
-                                    <span className="block sm:inline ml-2">{error}</span>
-                                </div>
-                            )}
                             <FileUpload onFileUpload={handleFileUpload} setIsLoading={setShowWelcome} setError={setError} />
                         </div>
                     ) : (
@@ -151,11 +181,21 @@ const App: React.FC = () => {
                                     onChannelRolesChange={setChannelRoles}
                                     isGridVisible={isGridVisible}
                                     onGridVisibilityChange={setIsGridVisible}
+                                    onOrientationUpload={handleOrientationUpload}
+                                    onClearOrientation={handleClearOrientation}
+                                    orientationFileName={orientationFileName}
                                 />
                             </aside>
                             <section className="lg:col-span-9">
                                 {processedData && (
                                     <div className="space-y-6">
+                                        {orientationData && (
+                                            <OrientationView 
+                                                data={orientationData}
+                                                currentTime={currentTime}
+                                                setCurrentTime={setCurrentTime}
+                                            />
+                                        )}
                                         {selectedChannels.length > 0 ? (
                                             selectedChannels.map(channelIndex => (
                                                 <ChannelAnalysisWrapper
@@ -168,6 +208,7 @@ const App: React.FC = () => {
                                                     maxFrequency={maxFrequency}
                                                     channelRoles={channelRoles}
                                                     isGridVisible={isGridVisible}
+                                                    currentTime={currentTime}
                                                 />
                                             ))
                                         ) : (
