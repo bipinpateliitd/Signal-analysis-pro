@@ -19,6 +19,7 @@ const App: React.FC = () => {
     const [showWelcome, setShowWelcome] = useState(true);
     const [isNormalizationEnabled, setIsNormalizationEnabled] = useState<boolean>(true);
     const [channelRoles, setChannelRoles] = useState<ChannelRoles>({ hydrophone: null, vx: null, vy: null });
+    const [isGridVisible, setIsGridVisible] = useState<boolean>(true);
 
 
     useEffect(() => {
@@ -148,6 +149,8 @@ const App: React.FC = () => {
                                     onNormalizationChange={setIsNormalizationEnabled}
                                     channelRoles={channelRoles}
                                     onChannelRolesChange={setChannelRoles}
+                                    isGridVisible={isGridVisible}
+                                    onGridVisibilityChange={setIsGridVisible}
                                 />
                             </aside>
                             <section className="lg:col-span-9">
@@ -164,6 +167,7 @@ const App: React.FC = () => {
                                                     samplingRate={signalData.samplingRate}
                                                     maxFrequency={maxFrequency}
                                                     channelRoles={channelRoles}
+                                                    isGridVisible={isGridVisible}
                                                 />
                                             ))
                                         ) : (

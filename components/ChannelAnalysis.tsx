@@ -25,7 +25,7 @@ const useResponsiveSVG = (containerRef: React.RefObject<HTMLDivElement>) => {
     return size;
 };
 
-const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: number }> = ({ freqs, psd_db, maxFrequency }) => {
+const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: number; isGridVisible: boolean; }> = ({ freqs, psd_db, maxFrequency, isGridVisible }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -48,6 +48,12 @@ const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: numbe
 
         const xDomain = [0, maxFrequency];
         const yExtent = d3.extent(plotData, (d: PlotPoint) => d.y);
+
+        // --- ROBUSTNESS CHECK ---
+        if (!yExtent || yExtent.some(v => v === undefined || !isFinite(v))) {
+            return;
+        }
+
         const yPadding = (yExtent[1] - yExtent[0]) * 0.1 || 10;
         const yDomain = [yExtent[0] - yPadding, yExtent[1] + yPadding];
 
@@ -59,6 +65,11 @@ const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: numbe
 
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
         
+        if (isGridVisible) {
+            chartG.append("g").attr("class", "grid").attr("transform", `translate(0,${chartHeight})`).call(d3.axisBottom(xScale).ticks(7).tickSize(-chartHeight).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        }
+
         const xAxisG = chartG.append("g").attr("transform", `translate(0,${chartHeight})`).call(xAxis);
         const yAxisG = chartG.append("g").call(yAxis);
         
@@ -72,12 +83,12 @@ const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: numbe
 
         chartG.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
 
-    }, [plotData, width, height, maxFrequency]);
+    }, [plotData, width, height, maxFrequency, isGridVisible]);
 
     return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
 };
 
-const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number[]; threshold: number; noiseMask: boolean[] }> = ({ frameTimes, frameEnergies, threshold, noiseMask }) => {
+const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number[]; threshold: number; noiseMask: boolean[]; isGridVisible: boolean; }> = ({ frameTimes, frameEnergies, threshold, noiseMask, isGridVisible }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -98,6 +109,12 @@ const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number
 
         const xDomain = d3.extent(plotData, d => d.time);
         const yMax = d3.max(plotData, d => d.energy);
+        
+        // --- ROBUSTNESS CHECK ---
+        if (!xDomain || xDomain.some(v => v === undefined || !isFinite(v)) || yMax === undefined || !isFinite(yMax)) {
+            return;
+        }
+
         const yDomain = [0, yMax * 1.1];
 
         const xScale = d3.scaleLinear().domain(xDomain).range([0, chartWidth]);
@@ -107,6 +124,11 @@ const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number
         const yAxis = d3.axisLeft(yScale).ticks(5).tickFormat(d => Number(d).toExponential(1));
 
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        if (isGridVisible) {
+            chartG.append("g").attr("class", "grid").attr("transform", `translate(0,${chartHeight})`).call(d3.axisBottom(xScale).ticks(7).tickSize(-chartHeight).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        }
 
         const xAxisG = chartG.append("g").attr("transform", `translate(0,${chartHeight})`).call(xAxis);
         const yAxisG = chartG.append("g").call(yAxis);
@@ -129,12 +151,12 @@ const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number
             .attr("y1", yScale(threshold)).attr("y2", yScale(threshold))
             .attr("stroke", "#facc15").attr("stroke-width", 2).attr("stroke-dasharray", "5,5");
 
-    }, [plotData, width, height, threshold]);
+    }, [plotData, width, height, threshold, isGridVisible]);
 
     return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
 };
 
-const NoiseAnalysisTab: React.FC<{ channelData: number[]; samplingRate: number; maxFrequency: number }> = ({ channelData, samplingRate, maxFrequency }) => {
+const NoiseAnalysisTab: React.FC<{ channelData: number[]; samplingRate: number; maxFrequency: number; isGridVisible: boolean; }> = ({ channelData, samplingRate, maxFrequency, isGridVisible }) => {
     const [frameLength, setFrameLength] = useState(0.1);
     const [percentile, setPercentile] = useState(30);
     const [noiseInfo, setNoiseInfo] = useState<NoiseInfo | null>(null);
@@ -188,14 +210,14 @@ const NoiseAnalysisTab: React.FC<{ channelData: number[]; samplingRate: number; 
                 <div>
                     <h4 className="text-lg font-bold text-white mb-2">Signal Activity</h4>
                     <p className="text-sm text-gray-400 mb-4">Frame energy over time. The yellow dashed line is the threshold. Purple shaded areas are detected as noise.</p>
-                    <SignalActivityPlot frameTimes={noiseInfo.frameTimes} frameEnergies={noiseInfo.frameEnergies} threshold={noiseInfo.threshold} noiseMask={noiseInfo.noiseMask} />
+                    <SignalActivityPlot frameTimes={noiseInfo.frameTimes} frameEnergies={noiseInfo.frameEnergies} threshold={noiseInfo.threshold} noiseMask={noiseInfo.noiseMask} isGridVisible={isGridVisible} />
                 </div>
                 
                 <div>
                      <h4 className="text-lg font-bold text-white mb-2">Noise Spectrum (PSD)</h4>
                      <p className="text-sm text-gray-400 mb-4">The Power Spectral Density of the noise-only portions of the signal, calculated using Welch's method.</p>
                      {noiseInfo.freqs.length > 0 ? (
-                        <PsdPlot freqs={noiseInfo.freqs} psd_db={noiseInfo.psd_db} maxFrequency={maxFrequency} />
+                        <PsdPlot freqs={noiseInfo.freqs} psd_db={noiseInfo.psd_db} maxFrequency={maxFrequency} isGridVisible={isGridVisible} />
                      ) : (
                         <div className="w-full h-80 flex items-center justify-center bg-base-300 rounded-lg"><p>Not enough noise samples to calculate spectrum.</p></div>
                      )}
@@ -221,7 +243,7 @@ const NoiseAnalysisTab: React.FC<{ channelData: number[]; samplingRate: number; 
     );
 };
 
-const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFrequency: number, tonals: PersistentTonal[] }> = ({ channelData, samplingRate, maxFrequency, tonals }) => {
+const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFrequency: number, tonals: PersistentTonal[], isGridVisible: boolean; }> = ({ channelData, samplingRate, maxFrequency, tonals, isGridVisible }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -246,6 +268,12 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
 
         const xDomain = [0, maxFrequency];
         const yExtent = d3.extent(plotData, (d: PlotPoint) => d.y);
+        
+        // --- ROBUSTNESS CHECK ---
+        if (!yExtent || yExtent.some(v => v === undefined || !isFinite(v))) {
+            return;
+        }
+        
         const yPadding = (yExtent[1] - yExtent[0]) * 0.1 || 10;
         const yDomain = [yExtent[0] - yPadding, yExtent[1] + yPadding];
 
@@ -257,6 +285,11 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
 
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
         
+        if (isGridVisible) {
+            chartG.append("g").attr("class", "grid").attr("transform", `translate(0,${chartHeight})`).call(d3.axisBottom(xScale).ticks(7).tickSize(-chartHeight).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        }
+
         const xAxisG = chartG.append("g").attr("transform", `translate(0,${chartHeight})`).call(xAxis);
         const yAxisG = chartG.append("g").call(yAxis);
         
@@ -310,15 +343,15 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
     // Cleanup tooltip on component unmount
     return () => { tooltip.remove(); };
 
-    }, [plotData, width, height, maxFrequency, tonals]);
+    }, [plotData, width, height, maxFrequency, tonals, isGridVisible]);
 
     return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
 };
 
-const TonalDetectionTab: React.FC<{ channelData: number[]; samplingRate: number; maxFrequency: number; onTonalsDetected: (tonals: PersistentTonal[]) => void; }> = ({ channelData, samplingRate, maxFrequency, onTonalsDetected }) => {
+const TonalDetectionTab: React.FC<{ channelData: number[]; samplingRate: number; maxFrequency: number; onTonalsDetected: (tonals: PersistentTonal[]) => void; isGridVisible: boolean; }> = ({ channelData, samplingRate, maxFrequency, onTonalsDetected, isGridVisible }) => {
     const [options, setOptions] = useState({
         freqRange: [100, 6000] as [number, number],
-        minSnrDb: 10,
+        minSnrDb: 15,
         frameDuration: 1.0,
         minFramesPresent: 2,
     });
@@ -363,7 +396,7 @@ const TonalDetectionTab: React.FC<{ channelData: number[]; samplingRate: number;
                 <div>
                      <h4 className="text-lg font-bold text-white mb-2">Detected Tonals on PSD</h4>
                      <p className="text-sm text-gray-400 mb-4">The Power Spectral Density of the entire signal, with persistent tonals marked in yellow.</p>
-                     <TonalPlot channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} tonals={tonals} />
+                     <TonalPlot channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} tonals={tonals} isGridVisible={isGridVisible} />
                 </div>
                 <div>
                     <h4 className="text-lg font-bold text-white mb-2">Persistent Tonals List</h4>
@@ -423,7 +456,7 @@ const TonalDetectionTab: React.FC<{ channelData: number[]; samplingRate: number;
     );
 }
 
-const DoaPlot: React.FC<{ data: DoaPoint[] }> = ({ data }) => {
+const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data, isGridVisible }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -433,7 +466,7 @@ const DoaPlot: React.FC<{ data: DoaPoint[] }> = ({ data }) => {
         const d3 = window.d3;
         if (!d3 || !svgRef.current || width === 0 || height === 0 || data.length === 0) return;
 
-        const margin = { top: 20, right: 30, bottom: 50, left: 70 };
+        const margin = { top: 20, right: 80, bottom: 50, left: 70 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
 
@@ -441,6 +474,12 @@ const DoaPlot: React.FC<{ data: DoaPoint[] }> = ({ data }) => {
         svg.selectAll("*").remove();
 
         const xDomain = d3.extent(data, d => d.time);
+        
+        // --- ROBUSTNESS CHECK ---
+        if (!xDomain || xDomain.some(v => v === undefined || !isFinite(v))) {
+            return;
+        }
+        
         const yDomain = [0, 360];
 
         const xScale = d3.scaleLinear().domain(xDomain).range([0, chartWidth]);
@@ -452,6 +491,11 @@ const DoaPlot: React.FC<{ data: DoaPoint[] }> = ({ data }) => {
 
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
         
+        if (isGridVisible) {
+            chartG.append("g").attr("class", "grid").attr("transform", `translate(0,${chartHeight})`).call(d3.axisBottom(xScale).ticks(7).tickSize(-chartHeight).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g").attr("class", "grid").call(d3.axisLeft(yScale).tickValues([0, 90, 180, 270, 360]).tickSize(-chartWidth).tickFormat("")).selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        }
+
         const xAxisG = chartG.append("g").attr("transform", `translate(0,${chartHeight})`).call(xAxis);
         const yAxisG = chartG.append("g").call(yAxis);
         
@@ -461,6 +505,18 @@ const DoaPlot: React.FC<{ data: DoaPoint[] }> = ({ data }) => {
         svg.append("text").attr("transform", `translate(${margin.left + chartWidth / 2}, ${height - margin.bottom + 40})`).style("text-anchor", "middle").style("fill", "#9ca3af").text("Time (s)");
         svg.append("text").attr("transform", "rotate(-90)").attr("y", 0).attr("x", 0 - (chartHeight / 2) - margin.top).attr("dy", "1em").style("text-anchor", "middle").style("fill", "#9ca3af").text("DOA (°)");
 
+        const tooltip = d3.select("body").append("div")
+            .attr("class", "doa-tooltip")
+            .style("position", "absolute")
+            .style("visibility", "hidden")
+            .style("background", "#1f2937")
+            .style("border", "1px solid #4b5563")
+            .style("border-radius", "8px")
+            .style("padding", "8px")
+            .style("color", "#e5e7eb")
+            .style("font-size", "12px")
+            .style("pointer-events", "none");
+
         chartG.selectAll(".doa-point")
             .data(data)
             .enter().append("circle")
@@ -469,9 +525,76 @@ const DoaPlot: React.FC<{ data: DoaPoint[] }> = ({ data }) => {
             .attr("cy", d => yScale(d.doa))
             .attr("r", 3)
             .attr("fill", d => colorScale(d.confidence))
-            .attr("opacity", 0.8);
+            .attr("opacity", 0.8)
+            .style("cursor", "pointer")
+            .on("mouseover", (event, d) => {
+                d3.select(event.currentTarget).transition().duration(100).attr("r", 5);
+                tooltip.style("visibility", "visible")
+                    .html(`<strong>DOA Point</strong><br/>
+                           Time: ${d.time.toFixed(3)} s<br/>
+                           DOA: ${d.doa.toFixed(1)}°<br/>
+                           Confidence: ${d.confidence.toFixed(2)}`);
+            })
+            .on("mousemove", (event) => {
+                tooltip.style("top", (event.pageY - 10) + "px").style("left", (event.pageX + 10) + "px");
+            })
+            .on("mouseout", (event) => {
+                d3.select(event.currentTarget).transition().duration(100).attr("r", 3);
+                tooltip.style("visibility", "hidden");
+            });
             
-    }, [data, width, height]);
+        // Add a color legend
+        const legendWidth = 20;
+        const legendG = svg.append("g")
+            .attr("transform", `translate(${margin.left + chartWidth + 20}, ${margin.top})`);
+
+        const linearGradient = svg.append("defs")
+            .append("linearGradient")
+            .attr("id", "doa-gradient")
+            .attr("x1", "0%").attr("y1", "100%")
+            .attr("x2", "0%").attr("y2", "0%");
+
+        const numStops = 10;
+        const colorRange = d3.range(numStops).map(i => i / (numStops - 1));
+        linearGradient.selectAll("stop")
+            .data(colorRange)
+            .enter().append("stop")
+            .attr("offset", d => `${d * 100}%`)
+            .attr("stop-color", d => colorScale(d));
+
+        legendG.append("rect")
+            .attr("width", legendWidth)
+            .attr("height", chartHeight)
+            .style("fill", "url(#doa-gradient)");
+
+        const legendYScale = d3.scaleLinear()
+            .domain([0, 1])
+            .range([chartHeight, 0]);
+
+        const legendYAxis = d3.axisRight(legendYScale)
+            .ticks(5)
+            .tickFormat(d3.format(".1f"));
+
+        legendG.append("g")
+            .attr("class", "legend-axis")
+            .attr("transform", `translate(${legendWidth}, 0)`)
+            .call(legendYAxis)
+            .selectAll("text, line, path")
+            .style("stroke", "#9ca3af")
+            .style("fill", "#9ca3af");
+            
+        legendG.append("text")
+            .attr("x", legendWidth / 2)
+            .attr("y", -8)
+            .style("text-anchor", "middle")
+            .style("fill", "#9ca3af")
+            .style("font-size", "12px")
+            .text("Confidence");
+
+        // Cleanup tooltip on component unmount
+        return () => { tooltip.remove(); };
+
+    }, [data, width, height, isGridVisible]);
 
     return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
 };
@@ -482,9 +605,11 @@ const DoaAnalysisTab: React.FC<{
     samplingRate: number;
     channelRoles: ChannelRoles;
     persistentTonals: PersistentTonal[];
-}> = ({ allChannelsData, samplingRate, channelRoles, persistentTonals }) => {
+    isGridVisible: boolean;
+}> = ({ allChannelsData, samplingRate, channelRoles, persistentTonals, isGridVisible }) => {
     const [selectedTonalFreq, setSelectedTonalFreq] = useState<number | null>(null);
     const [confidence, setConfidence] = useState(0.5);
+    const [frameDuration, setFrameDuration] = useState(5.0);
     const [doaData, setDoaData] = useState<DoaPoint[]>([]);
     const [isCalculating, setIsCalculating] = useState(false);
 
@@ -510,7 +635,7 @@ const DoaAnalysisTab: React.FC<{
                 const hData = allChannelsData[hydrophone];
                 const vxData = allChannelsData[vx];
                 const vyData = allChannelsData[vy];
-                const result = calculateDoaVsTime(hData, vxData, vyData, samplingRate, selectedTonalFreq);
+                const result = calculateDoaVsTime(hData, vxData, vyData, samplingRate, selectedTonalFreq, frameDuration);
                 setDoaData(result);
             } catch(e) {
                 console.error("DOA calculation failed", e);
@@ -521,7 +646,7 @@ const DoaAnalysisTab: React.FC<{
         }, 50);
         return () => clearTimeout(timer);
 
-    }, [selectedTonalFreq, channelRoles, allChannelsData, samplingRate]);
+    }, [selectedTonalFreq, channelRoles, allChannelsData, samplingRate, frameDuration]);
 
     const filteredDoaData = useMemo(() => {
         return doaData.filter(d => d.confidence >= confidence);
@@ -552,7 +677,7 @@ const DoaAnalysisTab: React.FC<{
                  <h4 className="text-lg font-bold text-white mb-2">DOA vs. Time</h4>
                  <p className="text-sm text-gray-400 mb-4">Direction of Arrival for the selected tonal over time. Color indicates confidence.</p>
                  {filteredDoaData.length > 0 ? (
-                    <DoaPlot data={filteredDoaData} />
+                    <DoaPlot data={filteredDoaData} isGridVisible={isGridVisible} />
                  ) : (
                     <div className="w-full h-80 flex items-center justify-center bg-base-300 rounded-lg"><p>No DOA points above the current confidence threshold.</p></div>
                  )}
@@ -582,6 +707,17 @@ const DoaAnalysisTab: React.FC<{
                     <label className="block text-sm font-medium text-gray-400 mb-1">Confidence Threshold ({confidence.toFixed(2)})</label>
                     <input type="range" min="0" max="1" step="0.05" value={confidence} onChange={e => setConfidence(Number(e.target.value))} className="w-48"/>
                 </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">Frame Duration (s)</label>
+                    <input 
+                        type="number" 
+                        value={frameDuration} 
+                        onChange={e => setFrameDuration(Number(e.target.value))} 
+                        step="0.1" 
+                        min="0.1" 
+                        className="bg-base-100 border border-gray-600 rounded-lg px-3 py-1 text-white text-sm w-28"
+                    />
+                </div>
             </div>
             {renderContent()}
         </div>
@@ -597,11 +733,12 @@ interface ChannelAnalysisProps {
   samplingRate: number;
   maxFrequency: number;
   channelRoles: ChannelRoles;
+  isGridVisible: boolean;
 }
 
 type Tab = 'waveform' | 'fft' | 'spectrogram' | 'noise' | 'tonals' | 'doa';
 
-export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, allChannelsData, samplingRate, maxFrequency, channelRoles }) => {
+export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, allChannelsData, samplingRate, maxFrequency, channelRoles, isGridVisible }) => {
   const [activeTab, setActiveTab] = useState<Tab>('waveform');
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -699,21 +836,21 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   const plotContent = useMemo(() => {
     switch (activeTab) {
       case 'waveform':
-        return <WaveformPlot data={channelData} samplingRate={samplingRate} />;
+        return <WaveformPlot data={channelData} samplingRate={samplingRate} isGridVisible={isGridVisible} />;
       case 'fft':
-        return <FftPlot data={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} />;
+        return <FftPlot data={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} isGridVisible={isGridVisible} />;
       case 'spectrogram':
         return <SpectrogramPlot data={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} />;
       case 'noise':
-        return <NoiseAnalysisTab channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} />;
+        return <NoiseAnalysisTab channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} isGridVisible={isGridVisible} />;
       case 'tonals':
-        return <TonalDetectionTab channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} onTonalsDetected={setPersistentTonals} />;
+        return <TonalDetectionTab channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} onTonalsDetected={setPersistentTonals} isGridVisible={isGridVisible} />;
       case 'doa':
-        return allRolesAssigned ? <DoaAnalysisTab allChannelsData={allChannelsData} samplingRate={samplingRate} channelRoles={channelRoles} persistentTonals={persistentTonals} /> : null;
+        return allRolesAssigned ? <DoaAnalysisTab allChannelsData={allChannelsData} samplingRate={samplingRate} channelRoles={channelRoles} persistentTonals={persistentTonals} isGridVisible={isGridVisible} /> : null;
       default:
         return null;
     }
-  }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, allChannelsData, channelRoles, persistentTonals]);
+  }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, allChannelsData, channelRoles, persistentTonals, isGridVisible]);
 
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-lg">

@@ -31,7 +31,7 @@ const useResponsiveSVG = (containerRef: React.RefObject<HTMLDivElement>) => {
     return size;
 };
 
-export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number }> = ({ data, samplingRate }) => {
+export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGridVisible: boolean; }> = ({ data, samplingRate, isGridVisible }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -57,18 +57,22 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number }> = 
         const brushHeight = 30;
         const mainChartHeight = height - margin.top - margin.bottom - brushHeight - 20;
 
-        const fullXDomain = d3.extent(plotData, (d: PlotPoint) => d.x);
-        if (!fullXDomain || fullXDomain[0] === undefined || fullXDomain[1] === undefined) return;
+        const svg = d3.select(svgRef.current);
+        svg.selectAll("*").remove(); // Clear previous render
 
+        const fullXDomain = d3.extent(plotData, (d: PlotPoint) => d.x);
         const yExtent = d3.extent(plotData, (d: PlotPoint) => d.y);
-        if(!yExtent || yExtent[0] === undefined || yExtent[1] === undefined) return;
+
+        // --- ROBUSTNESS CHECK ---
+        // Ensure domains are valid before proceeding
+        if (!fullXDomain || fullXDomain.some(v => v === undefined || !isFinite(v)) ||
+            !yExtent || yExtent.some(v => v === undefined || !isFinite(v))) {
+          return; // Don't render if data is invalid
+        }
         
         const padding = (yExtent[1] - yExtent[0]) * 0.1 || 1;
         const fullYDomain: [number, number] = [yExtent[0] - padding, yExtent[1] + padding];
         
-        const svg = d3.select(svgRef.current);
-        svg.selectAll("*").remove(); // Clear previous render
-
         const xDomain = currentDomain || fullXDomain;
 
         const xScale = d3.scaleLinear().domain(xDomain).range([0, chartWidth]);
@@ -78,6 +82,21 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number }> = 
         const yAxis = d3.axisLeft(yScale).ticks(5).tickFormat((d: any) => Number(d).toExponential(2));
 
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        
+        if (isGridVisible) {
+            // Horizontal grid lines
+            chartG.append("g")
+                .attr("class", "grid")
+                .call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat(""))
+                .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            
+            // Vertical grid lines
+            chartG.append("g")
+                .attr("class", "grid")
+                .attr("transform", `translate(0,${mainChartHeight})`)
+                .call(d3.axisBottom(xScale).ticks(7).tickSize(-mainChartHeight).tickFormat(""))
+                .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        }
 
         chartG.append("defs").append("clipPath")
             .attr("id", "clip")
@@ -158,7 +177,7 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number }> = 
             .call(brush)
             .call(brush.move, currentDomain ? currentDomain.map(brushXScale) : fullXDomain.map(brushXScale));
 
-    }, [plotData, width, height, currentDomain]);
+    }, [plotData, width, height, currentDomain, isGridVisible]);
 
     return (
         <div ref={containerRef} className="w-full h-80">

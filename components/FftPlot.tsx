@@ -21,7 +21,7 @@ const useResponsiveSVG = (containerRef: React.RefObject<HTMLDivElement>) => {
     return size;
 };
 
-export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFrequency: number }> = ({ data, samplingRate, maxFrequency }) => {
+export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFrequency: number, isGridVisible: boolean; }> = ({ data, samplingRate, maxFrequency, isGridVisible }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const { width, height } = useResponsiveSVG(containerRef);
@@ -61,6 +61,12 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
 
         const xDomain = [0, maxFrequency];
         const yMax = d3.max(plotData, (d: PlotPoint) => d.y);
+        
+        // --- ROBUSTNESS CHECK ---
+        if (yMax === undefined || !isFinite(yMax)) {
+            return; // Don't render if max value is invalid
+        }
+
         const yDomain = [0, yMax === 0 ? 1 : yMax * 1.1];
 
         const xScale = d3.scaleLinear().domain(xDomain).range([0, chartWidth]);
@@ -71,16 +77,18 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
 
         const chartG = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
         
-        chartG.append("g")
-            .attr("class", "grid")
-            .attr("transform", `translate(0,${chartHeight})`)
-            .call(d3.axisBottom(xScale).ticks(10).tickSize(-chartHeight).tickFormat(""))
-            .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        if (isGridVisible) {
+            chartG.append("g")
+                .attr("class", "grid")
+                .attr("transform", `translate(0,${chartHeight})`)
+                .call(d3.axisBottom(xScale).ticks(10).tickSize(-chartHeight).tickFormat(""))
+                .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
 
-        chartG.append("g")
-            .attr("class", "grid")
-            .call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat(""))
-            .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+            chartG.append("g")
+                .attr("class", "grid")
+                .call(d3.axisLeft(yScale).ticks(5).tickSize(-chartWidth).tickFormat(""))
+                .selectAll("line, path").style("stroke", "#374151").style("stroke-dasharray", "3 3");
+        }
 
         const xAxisG = chartG.append("g")
             .attr("transform", `translate(0,${chartHeight})`)
@@ -133,7 +141,7 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
             .attr("stroke-width", 1.5)
             .attr("d", line);
 
-    }, [plotData, width, height, maxFrequency]);
+    }, [plotData, width, height, maxFrequency, isGridVisible]);
 
     return (
         <div ref={containerRef} className="w-full h-80">

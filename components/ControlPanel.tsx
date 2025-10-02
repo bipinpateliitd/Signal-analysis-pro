@@ -20,6 +20,8 @@ interface ControlPanelProps {
   onNormalizationChange: (enabled: boolean) => void;
   channelRoles: ChannelRoles;
   onChannelRolesChange: (roles: ChannelRoles) => void;
+  isGridVisible: boolean;
+  onGridVisibilityChange: (visible: boolean) => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -40,6 +42,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onNormalizationChange,
   channelRoles,
   onChannelRolesChange,
+  isGridVisible,
+  onGridVisibilityChange,
 }) => {
   const handleChannelToggle = (channelIndex: number) => {
     const newSelection = selectedChannels.includes(channelIndex)
@@ -154,20 +158,31 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
       </div>
 
-       <div>
+      <div>
         <h2 className="text-xl font-bold mb-3 text-white">Display Settings</h2>
-        <div>
-          <label htmlFor="max-freq" className="block text-sm font-medium text-gray-400 mb-1">Max Frequency (Hz)</label>
-          <input
-            type="number"
-            id="max-freq"
-            value={Math.round(maxFrequency)}
-            onChange={handleMaxFreqChange}
-            max={nyquist}
-            min={1}
-            className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
-          />
-          <p className="text-xs text-gray-500 mt-1">Max possible: {nyquist.toLocaleString()} Hz</p>
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="max-freq" className="block text-sm font-medium text-gray-400 mb-1">Max Frequency (Hz)</label>
+            <input
+              type="number"
+              id="max-freq"
+              value={Math.round(maxFrequency)}
+              onChange={handleMaxFreqChange}
+              max={nyquist}
+              min={1}
+              className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
+            />
+            <p className="text-xs text-gray-500 mt-1">Max possible: {nyquist.toLocaleString()} Hz</p>
+          </div>
+          <label className="flex items-center space-x-3 cursor-pointer pt-2">
+            <input
+              type="checkbox"
+              checked={isGridVisible}
+              onChange={(e) => onGridVisibilityChange(e.target.checked)}
+              className="form-checkbox h-5 w-5 text-secondary bg-base-300 border-gray-600 rounded focus:ring-secondary"
+            />
+            <span className="text-gray-200">Show Plot Grids</span>
+          </label>
         </div>
       </div>
       
