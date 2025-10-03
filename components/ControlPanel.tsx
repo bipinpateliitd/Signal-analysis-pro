@@ -25,6 +25,11 @@ interface ControlPanelProps {
   onOrientationUpload: (file: File) => void;
   onClearOrientation: () => void;
   orientationFileName: string;
+  analysisStartTime: number;
+  onAnalysisStartTimeChange: (time: number) => void;
+  signalDuration: number;
+  orientationStartTimeOffset: number;
+  onOrientationStartTimeOffsetChange: (time: number) => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -50,6 +55,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onOrientationUpload,
   onClearOrientation,
   orientationFileName,
+  analysisStartTime,
+  onAnalysisStartTimeChange,
+  signalDuration,
+  orientationStartTimeOffset,
+  onOrientationStartTimeOffsetChange,
 }) => {
   const orientationFileRef = useRef<HTMLInputElement>(null);
 
@@ -196,16 +206,61 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </label>
                 </>
             ) : (
-                <div className="bg-base-300 p-2 rounded-lg text-sm">
-                    <p className="text-gray-300 break-all"><span className="font-semibold text-gray-400">File:</span> {orientationFileName}</p>
+                <div className="bg-base-300 p-3 rounded-lg space-y-3">
+                    <p className="text-gray-300 break-all text-sm"><span className="font-semibold text-gray-400">File:</span> {orientationFileName}</p>
+                    
+                    <div>
+                        <label htmlFor="orientation-start-time" className="block text-sm font-medium text-gray-400 mb-1 flex items-center gap-1">
+                            Signal Start Time in File (s)
+                            <div className="relative group flex items-center">
+                                <InfoIcon />
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-base-100 border border-gray-600 text-xs text-gray-300 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                    Enter the timestamp from this orientation file that corresponds to the start (0s) of your main signal data.
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-base-100"></div>
+                                </div>
+                            </div>
+                        </label>
+                        <input
+                          type="number"
+                          id="orientation-start-time"
+                          value={orientationStartTimeOffset}
+                          onChange={e => onOrientationStartTimeOffsetChange(Number(e.target.value) < 0 ? 0 : Number(e.target.value))}
+                          min={0}
+                          step="0.1"
+                          className="w-full bg-base-100 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
+                        />
+                    </div>
+
                     <button
                         onClick={onClearOrientation}
-                        className="text-red-400 hover:text-red-300 text-xs mt-1"
+                        className="text-red-400 hover:text-red-300 text-xs w-full text-left"
                     >
-                        Clear
+                        Clear Orientation File
                     </button>
                 </div>
             )}
+        </div>
+      </div>
+      
+      <div>
+        <h2 className="text-xl font-bold mb-3 text-white">DOA Analysis Window</h2>
+        <div className="space-y-3">
+            <div>
+                <label htmlFor="start-time" className="block text-sm font-medium text-gray-400 mb-1">Start Time (s)</label>
+                <input
+                  type="number"
+                  id="start-time"
+                  value={analysisStartTime}
+                  onChange={e => onAnalysisStartTimeChange(Number(e.target.value) < 0 ? 0 : Number(e.target.value))}
+                  max={signalDuration}
+                  min={0}
+                  step="0.1"
+                  className="w-full bg-base-300 border border-gray-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-secondary focus:outline-none"
+                />
+            </div>
+            <div>
+                <p className="text-sm text-gray-400">End Time: <span className="font-semibold text-gray-300">{signalDuration.toFixed(2)}s</span> (Full Signal)</p>
+            </div>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 
+
 export enum FilterType {
     NONE = 'none',
     LOWPASS = 'lowpass',
@@ -58,8 +59,9 @@ export interface ChannelRoles {
 
 export interface DoaPoint {
     time: number;
-    doa: number;
+    doa: number; // After correction, this is the corrected value.
     confidence: number;
+    doa_raw?: number; // The original, uncorrected DOA value
 }
 
 export interface OrientationData {

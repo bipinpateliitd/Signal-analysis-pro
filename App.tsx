@@ -25,6 +25,8 @@ const App: React.FC = () => {
     const [orientationData, setOrientationData] = useState<OrientationData[] | null>(null);
     const [orientationFileName, setOrientationFileName] = useState<string>('');
     const [currentTime, setCurrentTime] = useState<number>(0);
+    const [analysisStartTime, setAnalysisStartTime] = useState<number>(0);
+    const [orientationStartTimeOffset, setOrientationStartTimeOffset] = useState<number>(0);
 
     useEffect(() => {
         if (showWelcome && !isLoading) {
@@ -55,6 +57,8 @@ const App: React.FC = () => {
         setOrientationData(null);
         setOrientationFileName('');
         setCurrentTime(0);
+        setAnalysisStartTime(0);
+        setOrientationStartTimeOffset(0);
         setIsLoading(false);
         setShowWelcome(false);
     };
@@ -69,6 +73,8 @@ const App: React.FC = () => {
         setOrientationData(null);
         setOrientationFileName('');
         setCurrentTime(0);
+        setAnalysisStartTime(0);
+        setOrientationStartTimeOffset(0);
         setShowWelcome(true);
     };
     
@@ -79,7 +85,7 @@ const App: React.FC = () => {
             const data = await parseXlsx(file);
             setOrientationData(data);
             setOrientationFileName(file.name);
-            setCurrentTime(data[0]?.time ?? 0);
+            // Don't set currentTime from file anymore, keep it in signal's time domain
         } catch(e) {
             setError(e instanceof Error ? e.message : "Failed to parse orientation file.");
             setOrientationData(null);
@@ -92,7 +98,7 @@ const App: React.FC = () => {
     const handleClearOrientation = () => {
         setOrientationData(null);
         setOrientationFileName('');
-        setCurrentTime(0);
+        setOrientationStartTimeOffset(0);
     };
 
     const handleApplyFilters = useCallback(() => {
@@ -123,6 +129,11 @@ const App: React.FC = () => {
     }, [signalData, filterSettings, isNormalizationEnabled]);
     
     const ChannelAnalysisWrapper = React.memo(ChannelAnalysis);
+    
+    const signalDuration = useMemo(() => {
+        if (!signalData) return 0;
+        return signalData.channels[0].length / signalData.samplingRate;
+    }, [signalData]);
 
 
     return (
@@ -184,6 +195,11 @@ const App: React.FC = () => {
                                     onOrientationUpload={handleOrientationUpload}
                                     onClearOrientation={handleClearOrientation}
                                     orientationFileName={orientationFileName}
+                                    analysisStartTime={analysisStartTime}
+                                    onAnalysisStartTimeChange={setAnalysisStartTime}
+                                    signalDuration={signalDuration}
+                                    orientationStartTimeOffset={orientationStartTimeOffset}
+                                    onOrientationStartTimeOffsetChange={setOrientationStartTimeOffset}
                                 />
                             </aside>
                             <section className="lg:col-span-9">
@@ -194,6 +210,8 @@ const App: React.FC = () => {
                                                 data={orientationData}
                                                 currentTime={currentTime}
                                                 setCurrentTime={setCurrentTime}
+                                                orientationStartTimeOffset={orientationStartTimeOffset}
+                                                signalDuration={signalDuration}
                                             />
                                         )}
                                         {selectedChannels.length > 0 ? (
@@ -209,6 +227,9 @@ const App: React.FC = () => {
                                                     channelRoles={channelRoles}
                                                     isGridVisible={isGridVisible}
                                                     currentTime={currentTime}
+                                                    analysisStartTime={analysisStartTime}
+                                                    orientationData={orientationData}
+                                                    orientationStartTimeOffset={orientationStartTimeOffset}
                                                 />
                                             ))
                                         ) : (

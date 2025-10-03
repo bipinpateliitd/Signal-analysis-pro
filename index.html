@@ -29,48 +29,80 @@
     </script>
     <style>
       .orientation-viewer .scene {
-        width: 12.5rem; /* 200px */
-        height: 12.5rem; /* 200px */
-        perspective: 40rem; /* 600px */
+        width: 20rem; /* 320px */
+        height: 20rem; /* 320px */
+        perspective: 50rem; /* 800px */
       }
 
-      .orientation-viewer .cube {
-        width: 100%;
-        height: 100%;
+      .orientation-viewer .submarine {
+        width: 1px;
+        height: 1px;
         position: relative;
         transform-style: preserve-3d;
         transition: transform 0.05s linear;
+        top: 50%;
+        left: 50%;
       }
 
-      .orientation-viewer .cube__face {
+      .orientation-viewer .sub-part {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          transform-style: preserve-3d;
+      }
+
+      .orientation-viewer .sub-face {
         position: absolute;
-        width: 12.5rem;
-        height: 12.5rem;
-        border: 1px solid #6b7280;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: white;
-        background: rgba(55, 65, 81, 0.8);
+        border: 1px solid #64748b;
+        background: rgba(51, 65, 85, 0.8);
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
         user-select: none;
+        transform-origin: center;
+        top: 50%;
+        left: 50%;
       }
 
-      .orientation-viewer .cube__face--front  { transform: rotateY(  0deg) translateZ(6.25rem); }
-      .orientation-viewer .cube__face--back   { transform: rotateY(180deg) translateZ(6.25rem); }
-      .orientation-viewer .cube__face--right  { transform: rotateY( 90deg) translateZ(6.25rem); }
-      .orientation-viewer .cube__face--left   { transform: rotateY(-90deg) translateZ(6.25rem); }
-      .orientation-viewer .cube__face--top    { transform: rotateX( 90deg) translateZ(6.25rem); }
-      .orientation-viewer .cube__face--bottom { transform: rotateX(-90deg) translateZ(6.25rem); }
-      
-      /* Un-mirror the text on the back face */
-      .orientation-viewer .cube__face--back > span {
-        display: inline-block;
-        transform: scaleX(-1);
+      /* Hull Dimensions: L=96, W=24, H=30 */
+      .orientation-viewer .hull > .sub-face {
+          background-color: #374151;
       }
+      .orientation-viewer .hull-front  { width: 24px; height: 30px; transform: translate(-50%, -50%) rotateY(0deg) translateZ(48px); }
+      .orientation-viewer .hull-back   { width: 24px; height: 30px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(48px); }
+      .orientation-viewer .hull-right  { width: 96px; height: 30px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(12px); }
+      .orientation-viewer .hull-left   { width: 96px; height: 30px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(12px); }
+      .orientation-viewer .hull-top    { width: 96px; height: 24px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(15px); }
+      .orientation-viewer .hull-bottom { width: 96px; height: 24px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(15px); }
+
+      .orientation-viewer .hull-front {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #4b5563;
+      }
+      .orientation-viewer .hull-front::after {
+        content: '';
+        width: 6px;
+        height: 6px;
+        background-color: #facc15;
+        border-radius: 50%;
+        box-shadow: 0 0 6px #facc15;
+      }
+
+      /* Tower Dimensions: L=24, W=18, H=24 */
+      .orientation-viewer .tower {
+          transform: translateY(-27px) translateZ(18px);
+      }
+      .orientation-viewer .tower > .sub-face {
+          background-color: #4b5563;
+      }
+
+      .orientation-viewer .tower-front  { width: 18px; height: 24px; transform: translate(-50%, -50%) rotateY(0deg) translateZ(12px); }
+      .orientation-viewer .tower-back   { width: 18px; height: 24px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(12px); }
+      .orientation-viewer .tower-right  { width: 24px; height: 24px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(9px); }
+      .orientation-viewer .tower-left   { width: 24px; height: 24px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(9px); }
+      .orientation-viewer .tower-top    { width: 24px; height: 18px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(12px); }
+      .orientation-viewer .tower-bottom { width: 24px; height: 18px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(12px); }
     </style>
 <script type="importmap">
 {

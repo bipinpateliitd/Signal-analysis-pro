@@ -1,4 +1,4 @@
-import { FilterType, FilterSettings, NoiseInfo, Tonal, PersistentTonal, DoaPoint } from '../types';
+import { FilterType, FilterSettings, NoiseInfo, Tonal, PersistentTonal, DoaPoint, OrientationData } from '../types';
 
 // --- UTILITY/MATH FUNCTIONS ---
 
@@ -54,6 +54,44 @@ const fft = (input: number[]): { real: number[], imag: number[] } => {
         }
     }
     return { real, imag };
+};
+
+// --- MATRIX UTILITIES (for internal use) ---
+
+const invert3x3 = (A: number[][]): number[][] | null => {
+    const a = A[0][0], b = A[0][1], c = A[0][2];
+    const d = A[1][0], e = A[1][1], f = A[1][2];
+    const g = A[2][0], h = A[2][1], i = A[2][2];
+    const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (det === 0) return null;
+    const invDet = 1 / det;
+    return [
+        [(e * i - f * h) * invDet, (c * h - b * i) * invDet, (b * f - c * e) * invDet],
+        [(f * g - d * i) * invDet, (a * i - c * g) * invDet, (c * d - a * f) * invDet],
+        [(d * h - e * g) * invDet, (b * g - a * h) * invDet, (a * e - b * d) * invDet]
+    ];
+};
+
+const matmul3x3 = (A: number[][], B: number[][]): number[][] => {
+    const C: number[][] = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            for (let k = 0; k < 3; k++) {
+                C[i][j] += A[i][k] * B[k][j];
+            }
+        }
+    }
+    return C;
+};
+
+const matVecMul3x3 = (A: number[][], x: number[]): number[] => {
+    const y: number[] = [0, 0, 0];
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            y[i] += A[i][j] * x[j];
+        }
+    }
+    return y;
 };
 
 
@@ -438,13 +476,13 @@ export const calculateDoaVsTime = (
     samplingRate: number,
     tonalFreq: number,
     frameDuration: number
-): DoaPoint[] => {
+): Omit<DoaPoint, 'doa_raw'>[] => {
     const frameSize = Math.pow(2, Math.round(Math.log2(frameDuration * samplingRate)));
     if (hData.length < frameSize) return [];
     const hopSize = Math.floor(frameSize / 4);
     const freqBin = Math.round(tonalFreq * frameSize / samplingRate);
 
-    const doaPoints: DoaPoint[] = [];
+    const doaPoints: Omit<DoaPoint, 'doa_raw'>[] = [];
     
     // Create padded arrays for FFT
     const hPadded = new Array(frameSize).fill(0);
@@ -497,4 +535,75 @@ export const calculateDoaVsTime = (
     }
 
     return doaPoints;
+};
+
+
+/**
+ * Interpolates orientation data to find roll, pitch, and yaw at a specific time.
+ */
+export const getInterpolatedOrientation = (time: number, data: OrientationData[]): { roll: number, pitch: number, yaw: number } => {
+    if (!data || data.length === 0) return { roll: 0, pitch: 0, yaw: 0 };
+    if (time <= data[0].time) return { roll: data[0].roll, pitch: data[0].pitch, yaw: data[0].yaw };
+    if (time >= data[data.length - 1].time) return { roll: data[data.length - 1].roll, pitch: data[data.length - 1].pitch, yaw: data[data.length - 1].yaw };
+
+    let low = 0, high = data.length - 1, index = -1;
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        if (data[mid].time <= time) {
+            index = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+    
+    const p1 = data[index];
+    const p2 = data[index + 1];
+    if (!p2) return p1;
+
+    const t = (time - p1.time) / (p2.time - p1.time);
+    if (isNaN(t) || !isFinite(t)) return p1;
+
+    const roll = p1.roll + t * (p2.roll - p1.roll);
+    const pitch = p1.pitch + t * (p2.pitch - p1.pitch);
+    const yaw = p1.yaw + t * (p2.yaw - p1.yaw);
+
+    return { roll, pitch, yaw };
+};
+
+
+/**
+ * Corrects a raw DOA azimuth using IMU orientation data.
+ */
+export const correctDoa = (doaAzimuth: number, imuRoll: number, imuPitch: number, imuYaw: number, elevationFixed: number = 0): number => {
+    const doaRad = (doaAzimuth * Math.PI) / 180;
+    const rollRad = (imuRoll * Math.PI) / 180;
+    const pitchRad = (imuPitch * Math.PI) / 180;
+    const yawRad = (imuYaw * Math.PI) / 180;
+    const elevationRad = (elevationFixed * Math.PI) / 180;
+    
+    const x_prime = Math.cos(doaRad);
+    const y_prime = Math.sin(doaRad);
+    const z_prime = Math.sin(elevationRad);
+    const vector = [x_prime, y_prime, z_prime];
+
+    const cosY = Math.cos(yawRad), sinY = Math.sin(yawRad);
+    const R_yaw = [[cosY, -sinY, 0], [sinY, cosY, 0], [0, 0, 1]];
+    
+    const cosP = Math.cos(pitchRad), sinP = Math.sin(pitchRad);
+    const R_pitch = [[cosP, 0, sinP], [0, 1, 0], [-sinP, 0, cosP]];
+    
+    const cosR = Math.cos(rollRad), sinR = Math.sin(rollRad);
+    const R_roll = [[1, 0, 0], [0, cosR, -sinR], [0, sinR, cosR]];
+
+    const R_total = matmul3x3(matmul3x3(R_yaw, R_pitch), R_roll);
+    const R_inverse = invert3x3(R_total);
+
+    if (!R_inverse) return doaAzimuth;
+
+    const corrected_vector = matVecMul3x3(R_inverse, vector);
+    let corrected_azimuth = Math.atan2(corrected_vector[1], corrected_vector[0]);
+    corrected_azimuth = (corrected_azimuth * 180) / Math.PI;
+
+    return (corrected_azimuth + 360) % 360;
 };

@@ -3,8 +3,8 @@ import { WaveformPlot } from './WaveformPlot';
 import { FftPlot } from './FftPlot';
 import { SpectrogramPlot } from './SpectrogramPlot';
 import { DownloadIcon, ChevronDownIcon } from './icons';
-import { calculateFFT, calculateWelchPsd, estimateNoise, detectTonals, calculateDoaVsTime } from '../services/signalProcessor';
-import { NoiseInfo, PlotPoint, PersistentTonal, ChannelRoles, DoaPoint } from '../types';
+import { calculateFFT, calculateWelchPsd, estimateNoise, detectTonals, calculateDoaVsTime, getInterpolatedOrientation, correctDoa } from '../services/signalProcessor';
+import { NoiseInfo, PlotPoint, PersistentTonal, ChannelRoles, DoaPoint, OrientationData } from '../types';
 
 // FIX: Add declarations for global libraries d3 and htmlToImage to avoid TypeScript errors.
 declare var d3: any;
@@ -498,7 +498,7 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
         yAxisG.selectAll("text, line, path").style("stroke", "#9ca3af").style("fill", "#9ca3af");
 
         svg.append("text").attr("transform", `translate(${margin.left + chartWidth / 2}, ${height - margin.bottom + 40})`).style("text-anchor", "middle").style("fill", "#9ca3af").text("Time (s)");
-        svg.append("text").attr("transform", "rotate(-90)").attr("y", 0).attr("x", 0 - (chartHeight / 2) - margin.top).attr("dy", "1em").style("text-anchor", "middle").style("fill", "#9ca3af").text("DOA (°)");
+        svg.append("text").attr("transform", "rotate(-90)").attr("y", 0).attr("x", 0 - (chartHeight / 2) - margin.top).attr("dy", "1em").style("text-anchor", "middle").style("fill", "#9ca3af").text("Corrected DOA (°)");
 
         const tooltip = d3.select("body").append("div")
             .attr("class", "doa-tooltip")
@@ -527,7 +527,8 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
                 tooltip.style("visibility", "visible")
                     .html(`<strong>DOA Point</strong><br/>
                            Time: ${d.time.toFixed(3)} s<br/>
-                           DOA: ${d.doa.toFixed(1)}°<br/>
+                           Corrected DOA: ${d.doa.toFixed(1)}°<br/>
+                           Raw DOA: ${d.doa_raw?.toFixed(1) ?? 'N/A'}°<br/>
                            Confidence: ${d.confidence.toFixed(2)}`);
             })
             .on("mousemove", (event) => {
@@ -601,7 +602,10 @@ const DoaAnalysisTab: React.FC<{
     channelRoles: ChannelRoles;
     persistentTonals: PersistentTonal[];
     isGridVisible: boolean;
-}> = ({ allChannelsData, samplingRate, channelRoles, persistentTonals, isGridVisible }) => {
+    analysisStartTime: number;
+    orientationData: OrientationData[] | null;
+    orientationStartTimeOffset: number;
+}> = ({ allChannelsData, samplingRate, channelRoles, persistentTonals, isGridVisible, analysisStartTime, orientationData, orientationStartTimeOffset }) => {
     const [selectedTonalFreq, setSelectedTonalFreq] = useState<number | null>(null);
     const [confidence, setConfidence] = useState(0.5);
     const [frameDuration, setFrameDuration] = useState(5.0);
@@ -630,8 +634,27 @@ const DoaAnalysisTab: React.FC<{
                 const hData = allChannelsData[hydrophone];
                 const vxData = allChannelsData[vx];
                 const vyData = allChannelsData[vy];
-                const result = calculateDoaVsTime(hData, vxData, vyData, samplingRate, selectedTonalFreq, frameDuration);
-                setDoaData(result);
+                const rawResult = calculateDoaVsTime(hData, vxData, vyData, samplingRate, selectedTonalFreq, frameDuration);
+                
+                const correctedResult = rawResult.map(p => {
+                    const time = p.time + analysisStartTime;
+                    let correctedDoa = p.doa;
+                    
+                    if (orientationData) {
+                        const orientationTime = time + orientationStartTimeOffset;
+                        const { roll, pitch, yaw } = getInterpolatedOrientation(orientationTime, orientationData);
+                        correctedDoa = correctDoa(p.doa, roll, pitch, yaw);
+                    }
+
+                    return { 
+                        ...p, 
+                        time,
+                        doa_raw: p.doa,
+                        doa: correctedDoa,
+                    };
+                });
+
+                setDoaData(correctedResult);
             } catch(e) {
                 console.error("DOA calculation failed", e);
                 setDoaData([]);
@@ -641,7 +664,7 @@ const DoaAnalysisTab: React.FC<{
         }, 50);
         return () => clearTimeout(timer);
 
-    }, [selectedTonalFreq, channelRoles, allChannelsData, samplingRate, frameDuration]);
+    }, [selectedTonalFreq, channelRoles, allChannelsData, samplingRate, frameDuration, analysisStartTime, orientationData, orientationStartTimeOffset]);
 
     const filteredDoaData = useMemo(() => {
         return doaData.filter(d => d.confidence >= confidence);
@@ -670,7 +693,7 @@ const DoaAnalysisTab: React.FC<{
         return (
             <div>
                  <h4 className="text-lg font-bold text-white mb-2">DOA vs. Time</h4>
-                 <p className="text-sm text-gray-400 mb-4">Direction of Arrival for the selected tonal over time. Color indicates confidence.</p>
+                 <p className="text-sm text-gray-400 mb-4">Direction of Arrival for the selected tonal over time. Color indicates confidence. Orientation correction is applied if data is available.</p>
                  {filteredDoaData.length > 0 ? (
                     <DoaPlot data={filteredDoaData} isGridVisible={isGridVisible} />
                  ) : (
@@ -730,11 +753,14 @@ interface ChannelAnalysisProps {
   channelRoles: ChannelRoles;
   isGridVisible: boolean;
   currentTime: number;
+  analysisStartTime: number;
+  orientationData: OrientationData[] | null;
+  orientationStartTimeOffset: number;
 }
 
 type Tab = 'waveform' | 'fft' | 'spectrogram' | 'noise' | 'tonals' | 'doa';
 
-export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, allChannelsData, samplingRate, maxFrequency, channelRoles, isGridVisible, currentTime }) => {
+export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, channelName, channelData, allChannelsData, samplingRate, maxFrequency, channelRoles, isGridVisible, currentTime, analysisStartTime, orientationData, orientationStartTimeOffset }) => {
   const [activeTab, setActiveTab] = useState<Tab>('waveform');
   const [isDownloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const plotRef = useRef<HTMLDivElement>(null);
@@ -753,6 +779,12 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   ];
   
   const visibleTabs = TABS.filter(t => t.visible);
+
+  const slicedAllChannelsData = useMemo(() => {
+    const startIndex = Math.floor(analysisStartTime * samplingRate);
+    if (startIndex <= 0 || startIndex >= allChannelsData[0].length) return allChannelsData;
+    return allChannelsData.map(ch => ch.slice(startIndex));
+}, [allChannelsData, analysisStartTime, samplingRate]);
   
   useEffect(() => {
       // If the current tab becomes hidden (e.g., role changed), switch back to waveform
@@ -840,11 +872,11 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
       case 'tonals':
         return <TonalDetectionTab channelData={channelData} samplingRate={samplingRate} maxFrequency={maxFrequency} onTonalsDetected={setPersistentTonals} isGridVisible={isGridVisible} />;
       case 'doa':
-        return allRolesAssigned ? <DoaAnalysisTab allChannelsData={allChannelsData} samplingRate={samplingRate} channelRoles={channelRoles} persistentTonals={persistentTonals} isGridVisible={isGridVisible} /> : null;
+        return allRolesAssigned ? <DoaAnalysisTab allChannelsData={slicedAllChannelsData} samplingRate={samplingRate} channelRoles={channelRoles} persistentTonals={persistentTonals} isGridVisible={isGridVisible} analysisStartTime={analysisStartTime} orientationData={orientationData} orientationStartTimeOffset={orientationStartTimeOffset} /> : null;
       default:
         return null;
     }
-  }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, allChannelsData, channelRoles, persistentTonals, isGridVisible, currentTime]);
+  }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, slicedAllChannelsData, channelRoles, persistentTonals, isGridVisible, currentTime, analysisStartTime, orientationData, orientationStartTimeOffset]);
 
   return (
     <div className="bg-base-200 p-4 rounded-xl shadow-lg">
