@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { calculateFFT } from '../services/signalProcessor';
 import { PlotPoint } from '../types';
 
@@ -56,13 +56,13 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
         const margin = { top: 20, right: 30, bottom: 50, left: 70 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
-        
+
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove();
 
         const xDomain = [0, maxFrequency];
         const yMax = d3.max(plotData, (d: PlotPoint) => d.y);
-        
+
         // --- ROBUSTNESS CHECK ---
         if (yMax === undefined || !isFinite(yMax)) {
             return; // Don't render if max value is invalid
@@ -130,12 +130,22 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
         gradient.append("stop").attr("offset", "0%").attr("stop-color", "#9333ea").attr("stop-opacity", 0.5);
         gradient.append("stop").attr("offset", "100%").attr("stop-color", "#9333ea").attr("stop-opacity", 0);
 
-        chartG.append("path")
+        // Add clip path for zooming (before chartContent)
+        svg.append("defs").append("clipPath")
+            .attr("id", "fft-clip")
+            .append("rect")
+            .attr("width", chartWidth)
+            .attr("height", chartHeight)
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const chartContent = chartG.append("g").attr("clip-path", "url(#fft-clip)");
+
+        chartContent.append("path")
             .datum(plotData)
             .attr("fill", "url(#fft-gradient)")
             .attr("d", area);
 
-        chartG.append("path")
+        chartContent.append("path")
             .datum(plotData)
             .attr("fill", "none")
             .attr("stroke", "#9333ea")
@@ -145,7 +155,7 @@ export const FftPlot: React.FC<{ data: number[], samplingRate: number, maxFreque
     }, [plotData, width, height, maxFrequency, isGridVisible]);
 
     return (
-        <div ref={containerRef} className="w-full h-80">
+        <div ref={containerRef} className="w-full h-80 relative">
             <svg ref={svgRef} width={width} height={height}></svg>
         </div>
     );

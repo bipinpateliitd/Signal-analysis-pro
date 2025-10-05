@@ -29,80 +29,236 @@
     </script>
     <style>
       .orientation-viewer .scene {
-        width: 20rem; /* 320px */
-        height: 20rem; /* 320px */
-        perspective: 50rem; /* 800px */
+        width: 20rem;
+        height: 20rem;
+        perspective: 800px;
+        perspective-origin: 50% 50%;
+        background: radial-gradient(ellipse at center, rgba(30, 58, 138, 0.2) 0%, rgba(17, 24, 39, 0.8) 70%);
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
       }
 
       .orientation-viewer .submarine {
-        width: 1px;
-        height: 1px;
+        width: 0;
+        height: 0;
         position: relative;
         transform-style: preserve-3d;
-        transition: transform 0.05s linear;
-        top: 50%;
-        left: 50%;
+        transition: transform 0.1s linear;
       }
 
-      .orientation-viewer .sub-part {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          transform-style: preserve-3d;
-      }
-
-      .orientation-viewer .sub-face {
+      /* Dolphin Body - Single streamlined ellipsoid */
+      .orientation-viewer .dolphin-body {
         position: absolute;
-        border: 1px solid #64748b;
-        background: rgba(51, 65, 85, 0.8);
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-        user-select: none;
-        transform-origin: center;
-        top: 50%;
-        left: 50%;
-      }
-
-      /* Hull Dimensions: L=96, W=24, H=30 */
-      .orientation-viewer .hull > .sub-face {
-          background-color: #374151;
-      }
-      .orientation-viewer .hull-front  { width: 24px; height: 30px; transform: translate(-50%, -50%) rotateY(0deg) translateZ(48px); }
-      .orientation-viewer .hull-back   { width: 24px; height: 30px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(48px); }
-      .orientation-viewer .hull-right  { width: 96px; height: 30px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(12px); }
-      .orientation-viewer .hull-left   { width: 96px; height: 30px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(12px); }
-      .orientation-viewer .hull-top    { width: 96px; height: 24px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(15px); }
-      .orientation-viewer .hull-bottom { width: 96px; height: 24px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(15px); }
-
-      .orientation-viewer .hull-front {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: #4b5563;
-      }
-      .orientation-viewer .hull-front::after {
-        content: '';
-        width: 6px;
-        height: 6px;
-        background-color: #facc15;
+        width: 180px;
+        height: 50px;
+        background: linear-gradient(180deg,
+          #bae6fd 0%,      /* Even lighter belly */
+          #7dd3fc 15%,     /* Bright light blue */
+          #38bdf8 35%,     /* Medium light */
+          #0ea5e9 60%,     /* Medium */
+          #0284c7 85%,     /* Dark blue */
+          #0369a1 100%     /* Darkest back */
+        );
         border-radius: 50%;
-        box-shadow: 0 0 6px #facc15;
+        transform: translateX(-90px) translateY(-25px) translateZ(0);
+        box-shadow:
+          inset -15px -15px 30px rgba(0,0,0,0.4),  /* 3D depth */
+          inset 15px 15px 25px rgba(255,255,255,0.4),  /* Stronger highlight */
+          0 10px 40px rgba(0,0,0,0.5);  /* Drop shadow */
+        border: 2px solid #0369a1;
+        opacity: 1.0;
       }
 
-      /* Tower Dimensions: L=24, W=18, H=24 */
-      .orientation-viewer .tower {
-          transform: translateY(-27px) translateZ(18px);
-      }
-      .orientation-viewer .tower > .sub-face {
-          background-color: #4b5563;
+      /* Dolphin Nose/Rostrum - Glowing front indicator */
+      .orientation-viewer .dolphin-nose {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: radial-gradient(circle at 30% 30%, #fde047 0%, #fbbf24 50%, #38bdf8 100%);
+        border-radius: 50%;
+        transform: translateX(73px) translateY(-10px) translateZ(10px);
+        box-shadow:
+          0 0 12px rgba(250, 204, 21, 0.6),
+          inset -3px -3px 6px rgba(0,0,0,0.3);
+        border: 1px solid #fde047;
       }
 
-      .orientation-viewer .tower-front  { width: 18px; height: 24px; transform: translate(-50%, -50%) rotateY(0deg) translateZ(12px); }
-      .orientation-viewer .tower-back   { width: 18px; height: 24px; transform: translate(-50%, -50%) rotateY(180deg) translateZ(12px); }
-      .orientation-viewer .tower-right  { width: 24px; height: 24px; transform: translate(-50%, -50%) rotateY(90deg) translateZ(9px); }
-      .orientation-viewer .tower-left   { width: 24px; height: 24px; transform: translate(-50%, -50%) rotateY(-90deg) translateZ(9px); }
-      .orientation-viewer .tower-top    { width: 24px; height: 18px; transform: translate(-50%, -50%) rotateX(90deg) translateZ(12px); }
-      .orientation-viewer .tower-bottom { width: 24px; height: 18px; transform: translate(-50%, -50%) rotateX(-90deg) translateZ(12px); }
+      /* Dorsal Fin - Shows "up" orientation clearly */
+      .orientation-viewer .dolphin-dorsal-fin {
+        position: absolute;
+        width: 0;
+        height: 0;
+        border-left: 12px solid transparent;
+        border-right: 12px solid transparent;
+        border-bottom: 25px solid #0369a1;
+        transform: translateX(-12px) translateY(-50px) translateZ(0) rotateX(90deg);
+        filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+      }
+
+      /* Tail Fluke - Horizontal fins showing pitch */
+      .orientation-viewer .dolphin-tail {
+        position: absolute;
+        width: 30px;
+        height: 6px;
+        background: linear-gradient(90deg, transparent 0%, #60a5fa 20%, #3b82f6 50%, #60a5fa 80%, transparent 100%);
+        border-radius: 50%;
+        transform: translateX(-105px) translateY(-3px) translateZ(0);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      }
+
+      /* Side Pectoral Fins - Hidden */
+      .orientation-viewer .dolphin-fin-left {
+        display: none;
+      }
+
+      .orientation-viewer .dolphin-fin-right {
+        display: none;
+      }
+
+      /* Coordinate Axes */
+      .orientation-viewer .axes {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      .orientation-viewer .axis {
+        position: absolute;
+        transform-style: preserve-3d;
+      }
+
+      /* X-Axis (Red - Starboard/Right) */
+      .orientation-viewer .axis-x-line {
+        width: 140px;
+        height: 6px;
+        background: #ef4444;
+        transform: translateX(0) translateY(-3px) translateZ(0);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 1), 0 0 30px rgba(239, 68, 68, 0.5);
+        border-radius: 3px;
+      }
+
+      .orientation-viewer .axis-x-arrow {
+        display: none;
+      }
+
+      .orientation-viewer .axis-x-label {
+        position: absolute;
+        color: #fff;
+        font-weight: 900;
+        font-size: 36px;
+        font-family: Arial, sans-serif;
+        background: #ef4444;
+        padding: 8px 20px;
+        border-radius: 10px;
+        text-shadow: 0 3px 6px rgba(0, 0, 0, 1);
+        box-shadow: 0 0 25px rgba(239, 68, 68, 1), 0 0 50px rgba(239, 68, 68, 0.8);
+        transform: translateX(220px) translateY(-24px) translateZ(100px);
+        z-index: 1000;
+        border: 4px solid #fff;
+      }
+
+      /* Y-Axis (Green - Up/Dorsal) */
+      .orientation-viewer .axis-y-line {
+        width: 6px;
+        height: 140px;
+        background: #10b981;
+        transform: translateX(-3px) translateY(-140px) translateZ(0);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 1), 0 0 30px rgba(16, 185, 129, 0.5);
+        border-radius: 3px;
+      }
+
+      .orientation-viewer .axis-y-arrow {
+        display: none;
+      }
+
+      .orientation-viewer .axis-y-label {
+        position: absolute;
+        color: #fff;
+        font-weight: 900;
+        font-size: 36px;
+        font-family: Arial, sans-serif;
+        background: #10b981;
+        padding: 8px 20px;
+        border-radius: 10px;
+        text-shadow: 0 3px 6px rgba(0, 0, 0, 1);
+        box-shadow: 0 0 25px rgba(16, 185, 129, 1), 0 0 50px rgba(16, 185, 129, 0.8);
+        transform: translateX(-24px) translateY(-260px) translateZ(100px);
+        z-index: 1000;
+        border: 4px solid #fff;
+      }
+
+      /* Z-Axis (Blue - Forward/Bow) */
+      .orientation-viewer .axis-z-line {
+        width: 140px;
+        height: 6px;
+        background: #3b82f6;
+        transform: translateX(-70px) translateY(-3px) rotateY(90deg) translateZ(-70px);
+        box-shadow: 0 0 15px rgba(59, 130, 246, 1), 0 0 30px rgba(59, 130, 246, 0.5);
+        border-radius: 3px;
+      }
+
+      .orientation-viewer .axis-z-arrow {
+        display: none;
+      }
+
+      .orientation-viewer .axis-z-label {
+        position: absolute;
+        color: #fff;
+        font-weight: 900;
+        font-size: 36px;
+        font-family: Arial, sans-serif;
+        background: #3b82f6;
+        padding: 8px 20px;
+        border-radius: 10px;
+        text-shadow: 0 3px 6px rgba(0, 0, 0, 1);
+        box-shadow: 0 0 25px rgba(59, 130, 246, 1), 0 0 50px rgba(59, 130, 246, 0.8);
+        transform: translateX(-24px) translateY(-24px) translateZ(-320px);
+        z-index: 1000;
+        border: 4px solid #fff;
+      }
+
+      /* Fixed 2D Axis Labels - Always visible, never rotate */
+      .orientation-viewer .axis-label-x-fixed,
+      .orientation-viewer .axis-label-y-fixed,
+      .orientation-viewer .axis-label-z-fixed {
+        position: absolute;
+        font-size: 12px;
+        font-weight: 900;
+        font-family: Arial, sans-serif;
+        color: #fff;
+        padding: 3px 8px;
+        border-radius: 4px;
+        border: 1px solid #fff;
+        z-index: 2000;
+        pointer-events: none;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
+      }
+
+      .orientation-viewer .axis-label-x-fixed {
+        background: #ef4444;
+        bottom: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0 0 25px rgba(239, 68, 68, 1), 0 0 50px rgba(239, 68, 68, 0.6);
+      }
+
+      .orientation-viewer .axis-label-y-fixed {
+        background: #10b981;
+        left: 25px;
+        top: 50%;
+        transform: translateY(-50%);
+        box-shadow: 0 0 25px rgba(16, 185, 129, 1), 0 0 50px rgba(16, 185, 129, 0.6);
+      }
+
+      .orientation-viewer .axis-label-z-fixed {
+        background: #3b82f6;
+        top: 35px;
+        left: 50%;
+        transform: translateX(-50%);
+        box-shadow: 0 0 25px rgba(59, 130, 246, 1), 0 0 50px rgba(59, 130, 246, 0.6);
+      }
     </style>
 <script type="importmap">
 {
@@ -122,6 +278,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
     <!-- Main application entry point -->
     <script type="module" src="/index.tsx"></script>

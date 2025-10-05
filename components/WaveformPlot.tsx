@@ -169,7 +169,7 @@ export const WaveformPlot: React.FC<{ data: number[]; samplingRate: number; isGr
     }, [plotData, width, height, currentDomain, isGridVisible, currentTime]);
 
     return (
-        <div ref={containerRef} className="w-full h-80">
+        <div ref={containerRef} className="w-full h-80 relative">
             <svg ref={svgRef} width={width} height={height}></svg>
         </div>
     );

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { WaveformPlot } from './WaveformPlot';
 import { FftPlot } from './FftPlot';
 import { SpectrogramPlot } from './SpectrogramPlot';
+import { DoaPolarPlot } from './DoaPolarPlot';
 import { DownloadIcon, ChevronDownIcon } from './icons';
 import { calculateFFT, calculateWelchPsd, estimateNoise, detectTonals, calculateDoaVsTime, getInterpolatedOrientation, correctDoa } from '../services/signalProcessor';
 import { NoiseInfo, PlotPoint, PersistentTonal, ChannelRoles, DoaPoint, OrientationData } from '../types';
@@ -82,11 +83,25 @@ const PsdPlot: React.FC<{ freqs: number[]; psd_db: number[]; maxFrequency: numbe
 
         const line = d3.line().x((d: any) => xScale(d.x)).y((d: any) => yScale(d.y));
 
-        chartG.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
+        // Add clip path
+        svg.append("defs").append("clipPath")
+            .attr("id", "psd-clip")
+            .append("rect")
+            .attr("width", chartWidth)
+            .attr("height", chartHeight)
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const chartContent = chartG.append("g").attr("clip-path", "url(#psd-clip)");
+
+        chartContent.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
 
     }, [plotData, width, height, maxFrequency, isGridVisible]);
 
-    return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
+    return (
+        <div ref={containerRef} className="w-full h-80 relative">
+            <svg ref={svgRef} width={width} height={height}></svg>
+        </div>
+    );
 };
 
 const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number[]; threshold: number; noiseMask: boolean[]; isGridVisible: boolean; }> = ({ frameTimes, frameEnergies, threshold, noiseMask, isGridVisible }) => {
@@ -139,20 +154,34 @@ const SignalActivityPlot: React.FC<{ frameTimes: number[]; frameEnergies: number
         svg.append("text").attr("transform", "rotate(-90)").attr("y", 0).attr("x", 0 - (chartHeight / 2) - margin.top).attr("dy", "1em").style("text-anchor", "middle").style("fill", "#9ca3af").text("Frame Energy");
 
         const line = d3.line().x(d => xScale(d.time)).y(d => yScale(d.energy));
-        
+
         const noiseArea = d3.area().x(d => xScale(d.time)).y0(chartHeight).y1(d => d.isNoise ? yScale(d.energy) : chartHeight);
 
-        chartG.append("path").datum(plotData).attr("fill", "#9333ea").attr("opacity", 0.3).attr("d", noiseArea);
-        chartG.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
-        
-        chartG.append("line")
+        // Add clip path
+        svg.append("defs").append("clipPath")
+            .attr("id", "signal-activity-clip")
+            .append("rect")
+            .attr("width", chartWidth)
+            .attr("height", chartHeight)
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const chartContent = chartG.append("g").attr("clip-path", "url(#signal-activity-clip)");
+
+        chartContent.append("path").datum(plotData).attr("fill", "#9333ea").attr("opacity", 0.3).attr("d", noiseArea);
+        chartContent.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
+
+        chartContent.append("line")
             .attr("x1", 0).attr("x2", chartWidth)
             .attr("y1", yScale(threshold)).attr("y2", yScale(threshold))
             .attr("stroke", "#facc15").attr("stroke-width", 2).attr("stroke-dasharray", "5,5");
 
     }, [plotData, width, height, threshold, isGridVisible]);
 
-    return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
+    return (
+        <div ref={containerRef} className="w-full h-80 relative">
+            <svg ref={svgRef} width={width} height={height}></svg>
+        </div>
+    );
 };
 
 const NoiseAnalysisTab: React.FC<{ channelData: number[]; samplingRate: number; maxFrequency: number; isGridVisible: boolean; }> = ({ channelData, samplingRate, maxFrequency, isGridVisible }) => {
@@ -298,8 +327,18 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
 
         const line = d3.line().x((d: any) => xScale(d.x)).y((d: any) => yScale(d.y));
 
-        chartG.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
-        
+        // Add clip path
+        svg.append("defs").append("clipPath")
+            .attr("id", "tonal-clip")
+            .append("rect")
+            .attr("width", chartWidth)
+            .attr("height", chartHeight)
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const chartContent = chartG.append("g").attr("clip-path", "url(#tonal-clip)");
+
+        chartContent.append("path").datum(plotData).attr("fill", "none").attr("stroke", "#3b82f6").attr("stroke-width", 1.5).attr("d", line);
+
         const tooltip = d3.select("body").append("div")
             .attr("class", "tonal-tooltip")
             .style("position", "absolute")
@@ -312,7 +351,7 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
             .style("font-size", "12px")
             .style("pointer-events", "none");
 
-        chartG.selectAll(".tonal-marker")
+        chartContent.selectAll(".tonal-marker")
             .data(tonals)
             .enter().append("circle")
             .attr("class", "tonal-marker")
@@ -336,13 +375,17 @@ const TonalPlot: React.FC<{ channelData: number[], samplingRate: number, maxFreq
             .on("mouseout", () => {
                 tooltip.style("visibility", "hidden");
             });
-    
+
     // Cleanup tooltip on component unmount
     return () => { tooltip.remove(); };
 
     }, [plotData, width, height, maxFrequency, tonals, isGridVisible]);
 
-    return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
+    return (
+        <div ref={containerRef} className="w-full h-80 relative">
+            <svg ref={svgRef} width={width} height={height}></svg>
+        </div>
+    );
 };
 
 const TonalDetectionTab: React.FC<{ channelData: number[]; samplingRate: number; maxFrequency: number; onTonalsDetected: (tonals: PersistentTonal[]) => void; isGridVisible: boolean; }> = ({ channelData, samplingRate, maxFrequency, onTonalsDetected, isGridVisible }) => {
@@ -474,7 +517,7 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
         if (!xDomain || xDomain.some(v => v === undefined || !isFinite(v))) {
             return;
         }
-        
+
         const yDomain = [0, 360];
 
         const xScale = d3.scaleLinear().domain(xDomain).range([0, chartWidth]);
@@ -500,6 +543,16 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
         svg.append("text").attr("transform", `translate(${margin.left + chartWidth / 2}, ${height - margin.bottom + 40})`).style("text-anchor", "middle").style("fill", "#9ca3af").text("Time (s)");
         svg.append("text").attr("transform", "rotate(-90)").attr("y", 0).attr("x", 0 - (chartHeight / 2) - margin.top).attr("dy", "1em").style("text-anchor", "middle").style("fill", "#9ca3af").text("Corrected DOA (°)");
 
+        // Add clip path
+        svg.append("defs").append("clipPath")
+            .attr("id", "doa-clip")
+            .append("rect")
+            .attr("width", chartWidth)
+            .attr("height", chartHeight)
+            .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+        const chartContent = chartG.append("g").attr("clip-path", "url(#doa-clip)");
+
         const tooltip = d3.select("body").append("div")
             .attr("class", "doa-tooltip")
             .style("position", "absolute")
@@ -512,7 +565,7 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
             .style("font-size", "12px")
             .style("pointer-events", "none");
 
-        chartG.selectAll(".doa-point")
+        chartContent.selectAll(".doa-point")
             .data(data)
             .enter().append("circle")
             .attr("class", "doa-point")
@@ -592,7 +645,11 @@ const DoaPlot: React.FC<{ data: DoaPoint[]; isGridVisible: boolean; }> = ({ data
 
     }, [data, width, height, isGridVisible]);
 
-    return <div ref={containerRef} className="w-full h-80"><svg ref={svgRef} width={width} height={height}></svg></div>;
+    return (
+        <div ref={containerRef} className="w-full h-80 relative">
+            <svg ref={svgRef} width={width} height={height}></svg>
+        </div>
+    );
 };
 
 
@@ -611,6 +668,9 @@ const DoaAnalysisTab: React.FC<{
     const [frameDuration, setFrameDuration] = useState(5.0);
     const [doaData, setDoaData] = useState<DoaPoint[]>([]);
     const [isCalculating, setIsCalculating] = useState(false);
+    const [viewMode, setViewMode] = useState<'time' | 'polar' | 'table'>('time');
+    const [sortColumn, setSortColumn] = useState<'time' | 'raw' | 'corrected' | 'confidence'>('time');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
     useEffect(() => {
         // Auto-select the first tonal if available and none is selected
@@ -670,6 +730,60 @@ const DoaAnalysisTab: React.FC<{
         return doaData.filter(d => d.confidence >= confidence);
     }, [doaData, confidence]);
 
+    const sortedDoaData = useMemo(() => {
+        const sorted = [...filteredDoaData];
+        sorted.sort((a, b) => {
+            let aVal, bVal;
+            switch (sortColumn) {
+                case 'time':
+                    aVal = a.time;
+                    bVal = b.time;
+                    break;
+                case 'raw':
+                    aVal = a.doa_raw ?? a.doa;
+                    bVal = b.doa_raw ?? b.doa;
+                    break;
+                case 'corrected':
+                    aVal = a.doa;
+                    bVal = b.doa;
+                    break;
+                case 'confidence':
+                    aVal = a.confidence;
+                    bVal = b.confidence;
+                    break;
+                default:
+                    return 0;
+            }
+            return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+        return sorted;
+    }, [filteredDoaData, sortColumn, sortDirection]);
+
+    const handleSort = (column: 'time' | 'raw' | 'corrected' | 'confidence') => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('asc');
+        }
+    };
+
+    const handleExportDoaCsv = () => {
+        const headers = 'Time (s),Raw DOA (°),Corrected DOA (°),Confidence\n';
+        const dataRows = sortedDoaData.map(d =>
+            `${d.time.toFixed(3)},${(d.doa_raw ?? d.doa).toFixed(2)},${d.doa.toFixed(2)},${d.confidence.toFixed(4)}`
+        );
+        const csvContent = headers + dataRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `doa_data_${selectedTonalFreq?.toFixed(1) ?? 'unknown'}Hz.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const renderContent = () => {
         const { hydrophone, vx, vy } = channelRoles;
         if (hydrophone === null || vx === null || vy === null) {
@@ -678,7 +792,7 @@ const DoaAnalysisTab: React.FC<{
         if (persistentTonals.length === 0) {
              return <div className="w-full h-96 flex items-center justify-center"><p>No persistent tonals detected on this channel. Please run Tonal Detection first.</p></div>;
         }
-        
+
         if (isCalculating) {
              return (
                 <div className="w-full h-96 flex items-center justify-center">
@@ -689,18 +803,101 @@ const DoaAnalysisTab: React.FC<{
                 </div>
             );
         }
-        
-        return (
-            <div>
-                 <h4 className="text-lg font-bold text-white mb-2">DOA vs. Time</h4>
-                 <p className="text-sm text-gray-400 mb-4">Direction of Arrival for the selected tonal over time. Color indicates confidence. Orientation correction is applied if data is available.</p>
-                 {filteredDoaData.length > 0 ? (
-                    <DoaPlot data={filteredDoaData} isGridVisible={isGridVisible} />
-                 ) : (
-                    <div className="w-full h-80 flex items-center justify-center bg-base-300 rounded-lg"><p>No DOA points above the current confidence threshold.</p></div>
-                 )}
-            </div>
-        )
+
+        if (viewMode === 'time') {
+            return (
+                <div>
+                     <h4 className="text-lg font-bold text-white mb-2">DOA vs. Time</h4>
+                     <p className="text-sm text-gray-400 mb-4">Direction of Arrival for the selected tonal over time. Color indicates confidence. Orientation correction is applied if data is available.</p>
+                     {filteredDoaData.length > 0 ? (
+                        <DoaPlot data={filteredDoaData} isGridVisible={isGridVisible} />
+                     ) : (
+                        <div className="w-full h-80 flex items-center justify-center bg-base-300 rounded-lg"><p>No DOA points above the current confidence threshold.</p></div>
+                     )}
+                </div>
+            );
+        } else if (viewMode === 'polar') {
+            return (
+                <div>
+                     <h4 className="text-lg font-bold text-white mb-2">DOA Polar Distribution</h4>
+                     <p className="text-sm text-gray-400 mb-4">Direction of Arrival shown in polar coordinates. Each point represents a DoA measurement at the selected frequency.</p>
+                     {filteredDoaData.length > 0 ? (
+                        <DoaPolarPlot data={filteredDoaData} isGridVisible={isGridVisible} />
+                     ) : (
+                        <div className="w-full h-80 flex items-center justify-center bg-base-300 rounded-lg"><p>No DOA points above the current confidence threshold.</p></div>
+                     )}
+                </div>
+            );
+        } else {
+            return (
+                <div>
+                     <div className="flex justify-between items-center mb-4">
+                         <div>
+                             <h4 className="text-lg font-bold text-white mb-1">DOA Data Table</h4>
+                             <p className="text-sm text-gray-400">Detailed Direction of Arrival measurements. Click column headers to sort.</p>
+                         </div>
+                         <button
+                             onClick={handleExportDoaCsv}
+                             disabled={sortedDoaData.length === 0}
+                             className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                         >
+                             <DownloadIcon />
+                             Export CSV
+                         </button>
+                     </div>
+                     {sortedDoaData.length > 0 ? (
+                         <div className="overflow-auto max-h-96 bg-base-300 rounded-lg">
+                             <table className="min-w-full divide-y divide-gray-700">
+                                 <thead className="bg-base-200 sticky top-0">
+                                     <tr>
+                                         <th
+                                             scope="col"
+                                             className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-700 select-none"
+                                             onClick={() => handleSort('time')}
+                                         >
+                                             Time (s) {sortColumn === 'time' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                         </th>
+                                         <th
+                                             scope="col"
+                                             className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-700 select-none"
+                                             onClick={() => handleSort('raw')}
+                                         >
+                                             Raw DOA (°) {sortColumn === 'raw' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                         </th>
+                                         <th
+                                             scope="col"
+                                             className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-700 select-none"
+                                             onClick={() => handleSort('corrected')}
+                                         >
+                                             Corrected DOA (°) {sortColumn === 'corrected' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                         </th>
+                                         <th
+                                             scope="col"
+                                             className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-700 select-none"
+                                             onClick={() => handleSort('confidence')}
+                                         >
+                                             Confidence {sortColumn === 'confidence' && (sortDirection === 'asc' ? '↑' : '↓')}
+                                         </th>
+                                     </tr>
+                                 </thead>
+                                 <tbody className="bg-base-300 divide-y divide-gray-700">
+                                     {sortedDoaData.map((point, idx) => (
+                                         <tr key={idx} className="hover:bg-base-200 transition-colors">
+                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{point.time.toFixed(3)}</td>
+                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{(point.doa_raw ?? point.doa).toFixed(2)}</td>
+                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{point.doa.toFixed(2)}</td>
+                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{point.confidence.toFixed(4)}</td>
+                                         </tr>
+                                     ))}
+                                 </tbody>
+                             </table>
+                         </div>
+                     ) : (
+                         <div className="w-full h-80 flex items-center justify-center bg-base-300 rounded-lg"><p>No DOA points above the current confidence threshold.</p></div>
+                     )}
+                </div>
+            );
+        }
     }
 
     return (
@@ -708,8 +905,8 @@ const DoaAnalysisTab: React.FC<{
              <div className="flex justify-start items-center gap-x-6 gap-y-2 flex-wrap p-2 rounded-lg bg-base-300">
                 <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Target Tonal</label>
-                    <select 
-                        value={selectedTonalFreq ?? ''} 
+                    <select
+                        value={selectedTonalFreq ?? ''}
                         onChange={e => setSelectedTonalFreq(Number(e.target.value))}
                         className="bg-base-100 border border-gray-600 rounded-lg px-3 py-1 text-white text-sm w-48"
                         disabled={persistentTonals.length === 0}
@@ -722,17 +919,40 @@ const DoaAnalysisTab: React.FC<{
                     </select>
                 </div>
                 <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">View Mode</label>
+                    <div className="flex items-center bg-base-100 rounded-lg p-1">
+                        <button
+                            onClick={() => setViewMode('time')}
+                            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${viewMode === 'time' ? 'bg-secondary text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                            Time Series
+                        </button>
+                        <button
+                            onClick={() => setViewMode('polar')}
+                            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${viewMode === 'polar' ? 'bg-secondary text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                            Polar Plot
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${viewMode === 'table' ? 'bg-secondary text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                        >
+                            Table View
+                        </button>
+                    </div>
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Confidence Threshold ({confidence.toFixed(2)})</label>
                     <input type="range" min="0" max="1" step="0.05" value={confidence} onChange={e => setConfidence(Number(e.target.value))} className="w-48"/>
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Frame Duration (s)</label>
-                    <input 
-                        type="number" 
-                        value={frameDuration} 
-                        onChange={e => setFrameDuration(Number(e.target.value))} 
-                        step="0.1" 
-                        min="0.1" 
+                    <input
+                        type="number"
+                        value={frameDuration}
+                        onChange={e => setFrameDuration(Number(e.target.value))}
+                        step="0.1"
+                        min="0.1"
                         className="bg-base-100 border border-gray-600 rounded-lg px-3 py-1 text-white text-sm w-28"
                     />
                 </div>
@@ -879,7 +1099,7 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
   }, [activeTab, channelData, samplingRate, maxFrequency, allRolesAssigned, slicedAllChannelsData, channelRoles, persistentTonals, isGridVisible, currentTime, analysisStartTime, orientationData, orientationStartTimeOffset]);
 
   return (
-    <div className="bg-base-200 p-4 rounded-xl shadow-lg">
+    <div className="bg-base-200 p-4 rounded-xl shadow-lg" data-channel-id={channelId}>
       <div className="flex justify-between items-center mb-4 flex-wrap gap-y-2">
         <h3 className="text-2xl font-bold text-white">{channelName || `Channel ${channelId + 1}`}</h3>
         <div className="flex items-center gap-4">
@@ -888,6 +1108,7 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                data-tab={tab.id}
                 className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${activeTab === tab.id ? 'bg-secondary text-white' : 'text-gray-300 hover:bg-gray-700'}`}
               >
                 {tab.label}
@@ -919,7 +1140,7 @@ export const ChannelAnalysis: React.FC<ChannelAnalysisProps> = ({ channelId, cha
           </div>
         </div>
       </div>
-      <div ref={plotRef} className="bg-base-200 p-2 rounded-lg">
+      <div ref={plotRef} className="bg-base-200 p-2 rounded-lg" data-plot-container>
         {plotContent}
       </div>
     </div>

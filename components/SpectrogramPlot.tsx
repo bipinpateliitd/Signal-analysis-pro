@@ -119,6 +119,7 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const workerRef = useRef<Worker | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const [windowSize, setWindowSize] = useState<number>(1024);
   const [hopSize, setHopSize] = useState<number>(256);
@@ -193,6 +194,7 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    ctx.save();
     ctx.clearRect(0, 0, width, height);
 
     if (!isFinite(maxMagnitude) || stft.length === 0 || stft[0].length === 0) {
@@ -227,6 +229,8 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
         ctx.fillRect(t * colWidth, y, Math.ceil(colWidth), Math.ceil(rowHeight));
       }
     }
+
+    ctx.restore();
 
   }, [stftData, maxFrequency, samplingRate]);
   
@@ -277,20 +281,20 @@ export const SpectrogramPlot: React.FC<SpectrogramPlotProps> = ({ data, sampling
     return (
       <div className="relative w-full" ref={containerRef} style={{ height: '320px' }}>
         <canvas ref={canvasRef} className="absolute top-0 left-0" />
-        <div className="absolute top-0 left-[-50px] h-full flex flex-col justify-between text-xs text-gray-400 py-1">
+        <div className="absolute top-0 left-[-50px] h-full flex flex-col justify-between text-xs text-gray-400 py-1 pointer-events-none">
           {freqLabels.slice().reverse().map((label, i) => <span key={i}>{label}</span>)}
         </div>
-        <div className="absolute top-1/2 left-[-70px] -translate-y-1/2 -rotate-90 text-sm text-gray-400">Frequency (Hz)</div>
-        <div className="absolute bottom-[-25px] w-full flex justify-between text-xs text-gray-400 px-1">
+        <div className="absolute top-1/2 left-[-70px] -translate-y-1/2 -rotate-90 text-sm text-gray-400 pointer-events-none">Frequency (Hz)</div>
+        <div className="absolute bottom-[-25px] w-full flex justify-between text-xs text-gray-400 px-1 pointer-events-none">
           {timeLabels.map((label, i) => <span key={i}>{label}</span>)}
         </div>
-        <div className="absolute bottom-[-45px] left-1/2 -translate-x-1/2 text-sm text-gray-400">Time (s)</div>
+        <div className="absolute bottom-[-45px] left-1/2 -translate-x-1/2 text-sm text-gray-400 pointer-events-none">Time (s)</div>
       </div>
     );
   };
 
   return (
-    <div style={{ paddingLeft: '70px', paddingBottom: '50px' }}>
+    <div style={{ paddingLeft: '70px', paddingBottom: '50px' }} className="relative">
       <div className="flex justify-end items-center gap-x-6 gap-y-2 flex-wrap mb-4">
         <div>
             <label htmlFor={`window-size-${samplingRate}`} className="block text-sm font-medium text-gray-400 mb-1">Window Size</label>

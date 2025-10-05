@@ -25,14 +25,17 @@ export const ChevronDownIcon: React.FC = () => (
 );
 
 export const PlayIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg className={className} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.879 7.519A1 1 0 008 8.447v3.106a1 1 0 001.879.528l2.5-1.553a1 1 0 000-1.056l-2.5-1.553z"></path>
+    <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="11" fill="#3b82f6" stroke="#fff" strokeWidth="2"/>
+        <path d="M9 7l9 5-9 5V7z" fill="#fff"/>
     </svg>
 );
 
 export const PauseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg className={className} fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h1a1 1 0 001-1V8a1 1 0 00-1-1H8zm3 0a1 1 0 00-1 1v4a1 1 0 001 1h1a1 1 0 001-1V8a1 1 0 00-1-1h-1z" clipRule="evenodd"></path>
+    <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="11" fill="#3b82f6" stroke="#fff" strokeWidth="2"/>
+        <rect x="8" y="6" width="3" height="12" rx="1" fill="#fff"/>
+        <rect x="13" y="6" width="3" height="12" rx="1" fill="#fff"/>
     </svg>
 );
 
@@ -102,10 +105,10 @@ export const SubmarineIcon: React.FC<{ className?: string }> = ({ className }) =
       {/* Back Fins */}
       <path d="M170,30 L195,5 L195,55 L170,30 Z" fill="#6b7280"/>
       <path d="M175,30 L190,20 L190,40 Z" fill="#374151"/>
-      
+
       {/* Main Hull */}
       <ellipse cx="100" cy="30" rx="100" ry="25" fill="url(#hull-gradient)" />
-      
+
       {/* Conning Tower */}
       <path d="M60,6 L140,6 L130,-10 L70,-10 Z" fill="#6b7280" />
       <ellipse cx="100" cy="6" rx="40" ry="8" fill="#9ca3af" />
@@ -114,4 +117,10 @@ export const SubmarineIcon: React.FC<{ className?: string }> = ({ className }) =
       <circle cx="10" cy="30" r="5" fill="#374151" />
     </g>
   </svg>
+);
+
+export const ZoomResetIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 10h4m-2 2v-4"></path>
+    </svg>
 );

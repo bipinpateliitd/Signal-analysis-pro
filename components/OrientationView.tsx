@@ -13,6 +13,7 @@ interface OrientationViewProps {
 
 export const OrientationView: React.FC<OrientationViewProps> = ({ data, currentTime, setCurrentTime, orientationStartTimeOffset, signalDuration }) => {
     const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackSpeed, setPlaybackSpeed] = useState(1);
     const animationFrameRef = useRef<number>();
 
     const { minTime, maxTime } = useMemo(() => {
@@ -37,7 +38,7 @@ export const OrientationView: React.FC<OrientationViewProps> = ({ data, currentT
             lastTime = timestamp;
 
             setCurrentTime(prevTime => {
-                const newTime = prevTime + deltaTime;
+                const newTime = prevTime + (deltaTime * playbackSpeed);
                 if (newTime >= maxTime) {
                     setIsPlaying(false);
                     return maxTime;
@@ -60,7 +61,7 @@ export const OrientationView: React.FC<OrientationViewProps> = ({ data, currentT
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-    }, [isPlaying, setCurrentTime, minTime, maxTime]);
+    }, [isPlaying, playbackSpeed, setCurrentTime, minTime, maxTime]);
 
     const handlePlayPause = () => {
         setIsPlaying(!isPlaying);
@@ -74,28 +75,45 @@ export const OrientationView: React.FC<OrientationViewProps> = ({ data, currentT
         <div className="bg-base-200 p-4 rounded-xl shadow-lg">
             <h3 className="text-2xl font-bold text-white mb-4 text-center">Orientation Viewer</h3>
             <div className="flex flex-col items-center">
-                <div className="w-full h-[24rem] flex items-center justify-center mb-4 orientation-viewer">
+                <div className="w-80 h-80 mx-auto flex items-center justify-center mb-8 orientation-viewer">
                     <div className="scene">
-                        <div 
+                        {/* Fixed 2D Labels - Always visible, never rotate */}
+                        <div className="axis-label-x-fixed">X</div>
+                        <div className="axis-label-y-fixed">Y</div>
+                        <div className="axis-label-z-fixed">Z</div>
+
+                        <div
                             className="submarine"
                             style={{ transform: `rotateX(${-pitch}deg) rotateY(${yaw}deg) rotateZ(${-roll}deg)` }}
                         >
-                            <div className="sub-part hull">
-                                <div className="sub-face hull-front"></div>
-                                <div className="sub-face hull-back"></div>
-                                <div className="sub-face hull-right"></div>
-                                <div className="sub-face hull-left"></div>
-                                <div className="sub-face hull-top"></div>
-                                <div className="sub-face hull-bottom"></div>
+                            {/* Coordinate Axes (lines only, labels are fixed overlays) */}
+                            <div className="axes">
+                                {/* X-Axis (Red - Right/Starboard) */}
+                                <div className="axis axis-x">
+                                    <div className="axis-x-line"></div>
+                                    <div className="axis-x-arrow"></div>
+                                </div>
+
+                                {/* Y-Axis (Green - Up/Dorsal) */}
+                                <div className="axis axis-y">
+                                    <div className="axis-y-line"></div>
+                                    <div className="axis-y-arrow"></div>
+                                </div>
+
+                                {/* Z-Axis (Blue - Forward/Bow) */}
+                                <div className="axis axis-z">
+                                    <div className="axis-z-line"></div>
+                                    <div className="axis-z-arrow"></div>
+                                </div>
                             </div>
-                            <div className="sub-part tower">
-                                <div className="sub-face tower-front"></div>
-                                <div className="sub-face tower-back"></div>
-                                <div className="sub-face tower-right"></div>
-                                <div className="sub-face tower-left"></div>
-                                <div className="sub-face tower-top"></div>
-                                <div className="sub-face tower-bottom"></div>
-                            </div>
+
+                            {/* Dolphin Parts */}
+                            <div className="dolphin-body"></div>
+                            <div className="dolphin-nose"></div>
+                            <div className="dolphin-dorsal-fin"></div>
+                            <div className="dolphin-tail"></div>
+                            <div className="dolphin-fin-left"></div>
+                            <div className="dolphin-fin-right"></div>
                         </div>
                     </div>
                 </div>
@@ -115,11 +133,36 @@ export const OrientationView: React.FC<OrientationViewProps> = ({ data, currentT
                             <p className="text-xl font-mono text-white">{yaw.toFixed(2)}°</p>
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-4">
-                            <button onClick={handlePlayPause} className="text-secondary hover:text-blue-400 transition-colors">
-                                {isPlaying ? <PauseIcon className="w-8 h-8"/> : <PlayIcon className="w-8 h-8"/>}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-center gap-4">
+                            <button onClick={handlePlayPause} className="hover:scale-110 transition-transform">
+                                {isPlaying ? <PauseIcon className="w-14 h-14"/> : <PlayIcon className="w-14 h-14"/>}
                             </button>
+                            <button
+                                onClick={() => setCurrentTime(minTime)}
+                                className="px-3 py-1 bg-base-300 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
+                                disabled={currentTime === minTime}
+                            >
+                                Reset
+                            </button>
+                            <div className="flex items-center gap-2 bg-base-300 px-3 py-1 rounded-lg">
+                                <span className="text-sm text-gray-400">Speed:</span>
+                                {[0.5, 1, 2, 5].map(speed => (
+                                    <button
+                                        key={speed}
+                                        onClick={() => setPlaybackSpeed(speed)}
+                                        className={`px-2 py-1 rounded text-sm transition-colors ${
+                                            playbackSpeed === speed
+                                                ? 'bg-secondary text-white'
+                                                : 'text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        {speed}x
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
                             <span className="text-sm font-mono text-gray-400 w-20 text-center">{currentTime.toFixed(2)}s</span>
                             <input
                                 type="range"

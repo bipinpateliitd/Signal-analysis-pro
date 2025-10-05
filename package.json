@@ -1,12 +1,78 @@
 {
   "name": "signal-analysis-pro",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "AiKairos Signal Analysis - Acoustic Vector Sensor signal processing and DoA estimation",
+  "author": "AiKairos",
+  "main": "electron/main.js",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:linux": "npm run build && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.aikairos.signalanalysis",
+    "productName": "AiKairos Signal Analysis",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icon.ico",
+      "fileAssociations": [
+        {
+          "ext": "wav",
+          "name": "WAV Audio File",
+          "role": "Editor"
+        },
+        {
+          "ext": "csv",
+          "name": "CSV Data File",
+          "role": "Editor"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Science",
+      "icon": "public/icon.png",
+      "fileAssociations": [
+        {
+          "ext": "wav",
+          "name": "WAV Audio File",
+          "mimeType": "audio/wav"
+        },
+        {
+          "ext": "csv",
+          "name": "CSV Data File",
+          "mimeType": "text/csv"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "dependencies": {
     "react": "^19.1.1",
